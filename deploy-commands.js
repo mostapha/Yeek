@@ -6,7 +6,7 @@ config();
 const commands = [
   new SlashCommandBuilder()
     .setName('weapons')
-    .setDescription('Show Albion weapons list')
+    .setDescription('Shows basic Albion clap weapons guide')
     .toJSON()
 ];
 
