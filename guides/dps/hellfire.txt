@@ -1,0 +1,11 @@
+# Hellfire Hands  
+Good damage option that offers anti heal and lots of mobility. Easy to play as all you need to do is hit the clump on 1.  
+## Spells  
+### Q2: Dragon Leap  
+> Mobility option. Use it to get closer to or away from the enemy zerg and to interrupt enemy players' spell casting.  
+### W1: Triple Kick  
+> Another mobility option. Use it to get closer to or away from the enemy zerg. You can also use it to kidnap enemy players or interrupt their spell casting.  
+### E: Infernal Boulder  
+> When the caller is engaging, make sure your E spell hits on 1. Since the spell has an animation, you might want to use it a bit earlier to make sure it hits on time.  
+## How to play it  
+Be in a good position, ready to engage. When the caller engages by counting down 54321, find a good spot to hit from, use your buffs, and then use your E spell, making sure it reaches the enemy clump on 1.

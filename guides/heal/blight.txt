@@ -1,0 +1,9 @@
+# Blight Staff  
+Great support healing staff that gives the team heals over time and can help us sustain the pressure.  
+## Spells  
+### Rejuvenation (Q1) or Rejuvenating Flower (Q3)  
+> Use the Q that you feel comfortable using, just make sure you give 2 or 3 Q charges to most front line and people that might get engaged on.  
+### Cleanse Heal (W4)  
+> Use your W spell to cleanse yourself or allies when they have debuffs or crowd control effects (silence, stun...), you should learn to quickly cleanse the moment you see a negative effect on our team  
+### Elevated Nature (E)  
+> Use your E to support the frontline when the enemy zerg pressures us or when we get engaged on

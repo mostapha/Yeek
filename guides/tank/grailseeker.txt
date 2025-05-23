@@ -1,0 +1,10 @@
+# Grailseeker  
+Your main role as a Grailseeker is to help the team disengage and kite from the enemy zerg (play defensively), but you can also use your E to help with the engage by catching enemy players when the caller is looking to engage. Just make sure you have some defensive abilities left when you use your E offensively to help the team come back and kite.  
+# Spells  
+## Cartwheel (Q3)  
+> Use your Q to annoy enemy tanks close to you, interrupt enemy spell casting, or stop enemy engages when they are looking to engage.  
+## Separator (W4)  
+> Same as your Q, use your W to annoy enemy players close to you and to interrupt enemy spell casts and engages.  
+## Soul Shaker (E)  
+> - When kiting, use your E to keep the enemy zerg away from our team. Make sure you use your E diagonally so it covers a long area.  
+> - When engaging, use your E to set up engages. When the caller is trying to engage, you can help by rooting the nearby targets to make it easier for him to clump them.

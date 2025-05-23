@@ -1,0 +1,40 @@
+{
+  "🛡️ Tank": {
+    "Heavy Mace": "tank/heavy_mace.txt",
+    "Great Arcane": "tank/great_arcane.txt",
+    "Bedrock": "tank/bedrock.txt",
+    "1h arcane": "tank/1h_arcane.txt",
+    "Great Hammer": "tank/great_hammer.txt",
+    "1h Hammer": "tank/1h_hammer.txt",
+    "Grovekeeper": "tank/grovekeeper.txt",
+    "Grailseeker": "tank/grailseeker.txt",
+    "Hoarfrost": "tank/hoarfrost.txt"
+  },
+  "💫 Support": {
+    "Rootbound": "support/rootbound.txt",
+    "Occult": "support/occult.txt",
+    "Oathkeeper": "support/oathkeeper.txt",
+    "Enegmatic": "support/enegmatic.txt",
+    "Locus": "support/locus.txt",
+    "Damnation": "support/damnation.txt",
+    "Lifecurse": "support/lifecurse.txt",
+    "Carving": "support/carving.txt",
+    "Spirithunter": "support/spirithunter.txt",
+    "Rotcaller": "support/rotcaller.txt",
+    "Incubus": "support/incubus.txt"
+  },
+  "⚔️ DPS": {
+    "Permafrost": "dps/permafrost.txt",
+    "Realmbreaker": "dps/realmbreaker.txt",
+    "Spiked": "dps/spiked.txt",
+    "Rift": "dps/rift.txt",
+    "Hellfire": "dps/hellfire.txt",
+    "Dawnsong": "dps/dawnsong.txt",
+    "Wailing": "dps/wailing.txt"
+  },
+  "💚 Heal": {
+    "Hallowfall": "heal/hallowfall.txt",
+    "Fallen": "heal/fallen.txt",
+    "Blight": "heal/blight.txt"
+  }
+}

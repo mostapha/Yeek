@@ -1,0 +1,9 @@
+# 1h Hammer  
+Your job as a 1h Hammer is to stop the enemy zerg from getting inside our zerg. When you see enemy players inside our zerg, use your E to stun them and use other spells to slow them and keep them away. You will also need to stop enemy engages. When you see enemy zerg using their buffs (knight helm, armor buffs, boots...), you need to use your abilities to defend us and delay them.  
+## Spells  
+### Iron Breaker (Q3)  
+> Spam your Q on enemies close to you. You can also use it when your caller is clumping enemies for an engage to reduce enemy damage resistance.  
+### Inertia Ring (W5)  
+> Use the Inertia Ring to help us kite. After every engage we make, we need 15 to 20 seconds to get our cooldowns back. During that time, you need to slow enemies and keep them away from us. This spell helps you do that.  
+### Garth Shatter (E)  
+> Use your E to either stop enemy engages or to stun enemy players inside our zerg. We should never let enemy tanks inside our zerg because they will slow and stun us. You need to use your E on them to keep them out of our zerg. Also, if you are in a good position and see the enemy trying to engage on us, use your E to stop their backline so they don't do damage.

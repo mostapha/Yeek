@@ -1,0 +1,11 @@
+# Rotcaller  
+Rotcaller is a support DPS weapon that prevents enemy players from getting healed for 2 seconds. You need to use your E when we are engaging and hit with our DPS so the enemy zerg finds it hard to recover from the damage.  
+## Spells  
+### Q3: Cursed Tar  
+> Not very important, but just keep using your Q spell in front to deal some damage to the front line.  
+### W1: Armor Piercer  
+> Very important quick pierce that you need to use when the caller is engaging. You can use it right before your E spell.  
+### E: Plaguebringer  
+> Use your E when we are engaging on the enemy and the caller countdown reaches 2 or 1. It's important to use it when the DPS hit so the enemy zerg can't get healed.  
+## How to play it  
+When the caller counts down "5-4-3-2-1", find the clump that you are engaging on, and when the caller reaches 3 or 2 (depending on how fast you cast), use your W, then your E on the clump.  

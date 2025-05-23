@@ -1,0 +1,9 @@
+# Grovekeeper  
+Your job as a Grovekeeper is to stop the enemy zerg when they try to engage and to keep them away from our zerg when we kite. Your E interrupts and stuns enemies, so use it when you see them trying to engage. Your W (Inertia Ring) is also great for slowing down the enemy zerg. When you combine them, you can almost stop the enemy zerg on your own.  
+## Spells  
+### Iron Breaker (Q3)  
+> Spam your Q on enemies that are close to you. You can also use it when your caller is clumping enemies for an engage to reduce enemy damage resistance.  
+### Inertia Ring (W5)  
+> Use the Inertia Ring to help us kite. After every engage, we need 15 to 20 seconds to get our cooldowns back. During that time, you need to slow enemies and keep them away from us. This spell is one of the best for doing that.  
+### Ground Pound (E)  
+> Use your E to stop enemy engages. When you see them using buffs to engage, jump on them and stop them. You can also use it to help us kite. Don't wait for them to use buffs. As soon as our engage is done and you see them trying to counter-engage, jump on them, stun them, and use your other abilities (w, helmet, armor) to keep them away.

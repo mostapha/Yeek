@@ -1,0 +1,11 @@
+# Spiked  
+One of the core DPS in the team because it deals a lot of damage to plate armor players and can help wipe enemy tanks.  
+## Spells  
+### Q2: Dragon Leap  
+> Mobility option. Use it to get closer to or away from the enemy zerg and to interrupt enemy players' spell casting.  
+### W1: Triple Kick  
+> Another mobility option. Use it to get closer to or away from the enemy zerg. You can also use it to kidnap enemy players or interrupt their spell casting.  
+### E: Gravitational Collapse
+> Your main damage. When the caller is engaging, hit the clump on 1 with the other DPS.  
+## How to play it  
+Spiked is not hard to play, you just need to be in a good position to hit the clump. When the caller is engaging, use your buffs (knight helm, hunter jacket, or whatever items you use) then, when the caller reaches 1, hit the clump.

@@ -1,0 +1,19 @@
+# Fallen Staff
+Offers insanely high healing output and can cleanse negative effects, it's also safe option as you don't need to be inside the damage to heal.
+## Spells  
+### Q3: Holy Flash  
+> Your main healing spell, use it **only** for people that need heals and don't just spam it
+### W4: Holy Orb  
+> Use it for extra healing when needed, you can use it on far targets as it have long range, you can also use it on close people to heal yourself too
+### E: Salvation  
+> Creates a circle that charges for 2s and heals up to 10 allies inside, it also cleanse CCs, debuffs and dot effects, Use it in the area that the enemy caller is engaging so people get healed and cleansed in time, remember that it takes 2 seconds before it start healing, so you can use your Q and W spells before you use your E
+# How to play it  
+Be in the backline or on the sides away from enemy caller, you should never let enemy caller catch you in his engages. Use your abilities only when needed, don't heal full HP players. 
+## Supporting the team  
+As a healer you also support your team by using your items and spells at the right time  
+### Knight Helmet  
+> Use Knight Helmet if you have it for your team when the caller is trying to engage (by calling 54321) so they don't get knocked by enemy defenses. Also use it when you see the enemy caller is trying to pull for engage — if you use it, he can't catch anyone.  
+### Druid Cowl  
+> Give Druid Cowl to your teammates when they need mana or ask for it  
+### Purity Robe  
+> Use Purity Robe when enemy tanks or caller is trying to go inside our zerg. Never let enemy tanks inside of us when were kiting and you have Purity Robe up

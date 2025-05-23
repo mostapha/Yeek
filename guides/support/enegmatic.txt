@@ -1,0 +1,9 @@
+# Enigmatic Staff  
+A defensive support weapon that gives shields to allies within a 5m radius while channeling. It's used as a defensive tool when the enemy zerg is engaging on us.  
+## Spells  
+### Arcane Protection (Q2)  
+> You use it to give people shields.  
+### Motivating Cleanse (W2)  
+> You use it to cleanse people if they have crowd control effects (stun, silence, root...) on them.  
+### Protective Beam (E)  
+> Beam an ally player and give shields to all people around them. The shield absorbs damage and can last up to 8 seconds. Use it when the enemy is engaging on us—pick an ally in the area that's taking damage and beam them with your E.  

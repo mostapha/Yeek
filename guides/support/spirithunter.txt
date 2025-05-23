@@ -1,0 +1,11 @@
+# Spirithunter  
+Your role as a Spirithunter is to support our DPS by reducing enemy resistance and helping our DPS kill.  
+## Spells  
+### Q1: Lunging Strike  
+> Use your Q ability on enemy tanks and enemies close to you.  
+### W1: Forest of Spears  
+> You can use your W after using your E when we are engaging on the enemy. It's a bonus DPS that can help our DPS kill.  
+### E: Corrupting Steel  
+> When we are engaging on the enemy zerg and the caller is counting down "5-4-3-2-1", make sure you use your E before the DPS hit. A good time to use it is at 3 or 2 to reduce enemy resistance before the DPS hit.  
+## How to play it  
+Stay in a good position away from the front line and wait for the caller to countdown "5-4-3-2-1", then step up and drop your E on the enemy zerg, followed by your W. Just make sure you use your E before 1 so our DPS benefit from the resistance reduction.

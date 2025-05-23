@@ -1,0 +1,6 @@
+# Basic Weapons Guide
+This is a simple guide for different weapons and roles in the game. It's nothing fancy, just meant to give a general idea of how to use a weapon if you're new to it or not sure how it works.
+
+It might miss some stuff because I didn't play all the roles and weapons the same way, but I think it's a good start. You can just click any item and scroll down to find a short guide about its role in ZvZ.
+
+I tried to keep it simple, just talking about the weapon itself and not the full build like armor, helmet, or boots. I might add a full guide for each role later if I feel it's needed.

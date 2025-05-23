@@ -1,0 +1,13 @@
+# Damnation Staff  
+Damnation is a pierce weapon. Its main role is to reduce enemy damage resistance and make it easier for our DPS to kill them.  
+When the caller is preparing to engage and counting down "5-4-3-2-1", you need to use your W spell, then your E spell in the direction the caller is engaging.  
+## Spells  
+### Cursed Tar (Q3)  
+> Not very important, but just keep using your Q spell in front to deal some damage to the front line.  
+### Armor Piercer (W1)  
+> Very important quick pierce that you need to use when the caller is engaging. You can use it right before your E spell.  
+### Cataclysm (E)  
+> Creates a big area of pierce, reducing damage resistance for all enemies affected. You should use this when the caller is engaging. It's important to use it early because it has a long cast time, and you need to cast it before the DPS hit so they can benefit from the reduced damage resistance.  
+## The idea  
+When the caller counts down "5-4-3-2-1", you need to use your W and E before they reach 1 because all the DPS need to hit on 1, and your W and E must be used before they hit.  
+For example, you can use your Scholar Robe (if youre using it) and W at 4, then use your E at 3 so it finishes casting before the DPS hit.

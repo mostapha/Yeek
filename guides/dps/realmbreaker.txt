@@ -1,0 +1,11 @@
+# Realmbreaker  
+One of the most important DPS in the team, it does good damage and reduces enemy's max and current HP, making it easier for other DPS to kill.  
+## Spells  
+### Q3: Rending Rage  
+> If you have time to brawl or see enemy players near you, use your Q ability to deal some damage.  
+### W3: Battle Rush  
+> Mobility option. Use it to get closer to or away from enemy zerg. It can also be used on low HP allies to boost the heals they get.  
+### E: Aftershock  
+> Your main damage. When the caller is engaging and counting down 54321, use it on 2 on the enemy clump to reduce enemy max and current health before other DPS hit.  
+## The idea  
+Realmbreaker is a support DPS weapon. It has good damage but the most important thing is the max and current health it reduces from enemies. For that, you need to hit early before other DPS. So if the caller is counting down 54321, you need to hit at 2 to reduce enemy health and help the other DPS hitting at 1 to kill.

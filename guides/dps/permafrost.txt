@@ -1,0 +1,13 @@
+# Permafrost  
+Perma is one of the most important DPS roles in the party. Besides your damage, it helps us stun clumps and guide other DPS to a clear target to hit.  
+## Spells  
+### Ice Shard (Q2)
+> Works well with Scholar Robe. After using your E, if you have some spare time to deal more damage, spam your Q on the enemy clump, but watch out for Demon Armor reflect.
+> :small_orange_diamond: If you don't want to take the risk of getting your Q reflected by demon armor you can use last Q3 **Frozen Surge** on enemy front line and to help us kite.
+### Frost Lance (W4)
+> Use "Frost Lance" right after using your E (before the E spell explodes). The spell takes some skill but is very rewarding when used right, as it reduces enemy damage resistance.  
+> :small_orange_diamond:W3 (Frost Nova) is also an option since it gives you more survivability, but for better damage, W4 is preferred.  
+### Ice Crystal (E)
+> It stuns the enemy clump for 1 second and then explodes, dealing damage. Use it when we are engaging, right when the caller reaches 3 on the 54321 countdown. You should be the first DPS to hit since hitting early stops the enemy zerg from using abilities and shows other DPS where to hit.  
+# How to play it  
+Position yourself well to make it hard for enemy stoppers to interrupt you when engaging. When the caller is engaging, step up and find the spot where he's engaging. As he starts counting down, use your buffs (boot, robe), drop your E on the clump a little bit early, follow with your W if using Frost Lance (W4)

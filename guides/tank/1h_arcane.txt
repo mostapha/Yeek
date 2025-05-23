@@ -1,0 +1,9 @@
+# 1h Arcane Staff  
+Your job as a 1h Arcane is to hinder enemy engages (make them useless) by using your E when they try to engage. Your E purges all their buffs and silences them so they can't do anything to us. Keep watching the enemy zerg, and when you see them trying to engage (by looking at the spells and buffs they use), drop your E on them.  
+## Spells  
+### Arcane Protection (Q2)  
+> Use it to give people shields.  
+### Motivating Cleanse (W2)  
+> Use it to cleanse people if they have crowd controls (stun, silence, roots...) on them.  
+### Arcane Orb (E)  
+> When you see enemy zerg activating their buffs to engage (when they use knight helm, boots, armor buffs...), drop your E on them to purge all the buffs and silence them. If you do that, they can't engage effectively. Even if they try, it will be less effective.
