@@ -1,14 +1,18 @@
 # Rootbound  
-Rootbound is a very important support. Your main role is to support the zerg with your E when the enemy is engaging or when we call for defenses.  
-You should always stay in your *Sylvian Form* and only switch back to human form when you need to get charges. This makes sure you can use your Sylvian Form W quickly when the enemy is engaging.  
+Rootbound is a very important support weapon in any zerg. Your main role is to support us defensively with your **Sylvian form W spell** when the enemy is engaging or when we call for defenses.
+
+You should always stay in your *Sylvian Form* and only switch back to human form to get **shift charges** as you need to keep at least 3 charges all the time to cast your Sylvian W.
+
+Staying all the time as Sylvian Form makes sure you always give us 10% more max health and can use your Sylvian W (Barbed Roots) quickly when the enemy is engaging or when we need defenses.
 ## Spells  
 ### Adapting Matter (Q3)  
-> Spam your Q to give people shields and to get shift charges.  
+> Spam your Q to give people shields and to get shift charges.
 ### Polymorph (W5)  
-> Use your W on front enemy players to get shift charges. You can use it on the enemy caller or any defensive tank who comes inside our zerg.  
+> Use your W on front enemy player or a mob to get bonus shift charge. You can use it on the enemy caller or any defensive tank who comes inside our zerg.  
 ### Sylvian Transformation (E)  
-> Try to use your E whenever you have it. Only switch back to human form to get charges so you can react quickly when you need to use your Sylvian Form W spell.  
-> **:small_blue_diamond: Sylvian Q: Seedling's Bloom**  
-> Use it on people who need healing. It boosts the heals they get, but make sure you keep 3 charges to use it for your Sylvian W when needed.  
-> **:small_blue_diamond: Sylvian W: Barbed Roots**  
-> You become immune to damage and give the team a shield and immunity to movement effects. Use it when the enemy caller is trying to engage on us or when you see him clumping us. Also, use it when the caller is asking for defensives.  
+> Use your E immediately after you get 3 shift charges, and stay in its form all the time, only switch back to human form to get charges using your Q or W spell. This is important to be able to cast your Sylvian Form W spell whenever we need it.
+> 
+> :small_blue_diamond: Seedling's Bloom (Q)
+> Drop it for us when we need emergency heals as It boosts the healing we receive, but make sure you keep 3 shift charges for your W spell, only use this spell when u have more than 3 charges
+> :small_blue_diamond: Barbed Roots (W)
+> You become immune to damage and give the team a shield and immunity to movement effects. Use it when the enemy caller is trying to engage on us or when you see him clumping us. Also, use it when the caller is asking for defensives.
