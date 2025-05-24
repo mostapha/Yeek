@@ -1,11 +1,11 @@
 # Dawnsong  
 Good DPS weapon that offers anti-heal and damage over time. It needs a bit more skill compared to other DPS since you have to aim your E.  
 ## Spells  
-### Q2: Burning Field  
+### Burning Field (Q2)
 > Keep using your Q spell on chokes, bridges, and to bully enemy tanks.  
-### W2: Wall of Flames  
+### Wall of Flames (W2)
 > Use your W spell to keep enemies away from us after we engage or when we are kiting.  
-### E: Flaming Phoenix  
+### Flaming Phoenix (E)
 > Use your E spell when the caller is counting down 54321, hitting the enemy clump on 1.  
 ## How to play it  
 Be in a good position away from the enemy caller. Stay in the backline and wait for your caller to prepare to engage. When the caller engages, use your buffs, hit the clump on 1, and go back to safety. If you see the enemy zerg trying to counter-engage while you're still close, drop your W spell on them to keep them away.
