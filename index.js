@@ -21,7 +21,7 @@ client.on(Events.InteractionCreate, async interaction => {
       '992470319531040849', // jmboys
       '1247740449959968870' // brotherhood
     ].includes(interaction.guildId)) {
-      await interaction.reply({ content: 'This bot is not allowed here.', ephemeral: true });
+      await interaction.reply({ content: 'This bot is not allowed here.', flags: 64 });
       return;
     }
 
@@ -34,13 +34,13 @@ client.on(Events.InteractionCreate, async interaction => {
     const memberRoles = interaction.member.roles;
 
     if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
-      await interaction.reply({ content: 'You don’t have permission to use this command.', ephemeral: true });
+      await interaction.reply({ content: 'You don’t have permission to use this command.', flags: 64 });
       return;
     }
 
 
     // Ephemeral confirmation
-    await interaction.reply({ content: 'Wa are getting the text and buttons ready.', flags: 64 });
+    await interaction.reply({ content: 'Wa are getting the intro and buttons ready.', flags: 64 });
 
     // Intro message (visible to all)
     await interaction.channel.send({
