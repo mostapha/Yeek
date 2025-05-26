@@ -8,11 +8,11 @@ The Oathkeeper gives us increased movement speed and a shield that absorbs a lar
 ### Blessed Aurora (E)
 > Your main spell. You create a wall of energy that gives whoever passes through it increased movement speed and a defensive shield.
 > **When to use it?**
-> :small_blue_diamond:Offensively, you can use it when the caller is counting down 5-4-3-2-1 to protect allies from possible counter-engages.
-> :small_blue_diamond:Defensively, you can use it after the engage while kiting or when the enemy is trying to engage on us. It's like you are using Rootbound or Enigmatic.
+> 🔹Offensively, you can use it when the caller is counting down 5-4-3-2-1 to protect allies from possible counter-engages.
+> 🔹Defensively, you can use it after the engage while kiting or when the enemy is trying to engage on us. It's like you are using Rootbound or Enigmatic.
 ## Use cases
-:small_orange_diamond:When the enemy caller is walking toward you, he transforms and tries to pull you! Drop a Guard Rune, then use your E.
-:small_orange_diamond:When we are trying to engage, our caller is counting down 5-4-3-2-1, use your E to give our players some speed and defensive support while engaging
-:small_orange_diamond:When the enemy caller pulls our team, drop a Guard Rune for them, then give them your E for a defensive shield
-:small_orange_diamond:When we finish an engage and we didn't get a kill, the enemy will try to counter-engage. You need to give us your E to help us get back to safety
-:small_orange_diamond:You can choose how to use your E spell depending on the situation. Just make sure it helps us at that time
+🔸When the enemy caller is walking toward you, he transforms and tries to pull you! Drop a Guard Rune, then use your E.
+🔸When we are trying to engage, our caller is counting down 5-4-3-2-1, use your E to give our players some speed and defensive support while engaging
+🔸When the enemy caller pulls our team, drop a Guard Rune for them, then give them your E for a defensive shield
+🔸When we finish an engage and we didn't get a kill, the enemy will try to counter-engage. You need to give us your E to help us get back to safety
+🔸You can choose how to use your E spell depending on the situation. Just make sure it helps us at that time
