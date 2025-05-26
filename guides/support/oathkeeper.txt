@@ -1,13 +1,18 @@
 # Oathkeeper
-The Othkeeper is a support weapon that gives the team an increased movement speed and a shield the absorbs a large amount of damage for 5 seconds.
+The Oathkeeper gives us increased movement speed and a shield that absorbs a large amount of damage for 5 seconds, it's important defensive tool that can help us both when we engage or we get engaged on.
 ## Spells
-## Sacred Ground (Q3)
+### Sacred Ground (Q3)
 > You keep spamming your q ability in front of us so if enemy try to engage they get silenced and slowed, keep using Q on the ground whenever you can
-## Guard Rune (W3)
-> Very important spell. It gives us *damage resistence* and *immunity to forced movement effects and stuns*. Use it when we are crossing bridges and chokes so we dont get clumped and wiped there. Also use it when the enemy caller trying to engage on us so we don't get pulled and also to get damage resistence.
-## Blessed Aurora (E)
-> Create a wall of "blessed aurora", anyone who passed it gets increased movement speed and a shield that absorbes damage lasts for 5s.
-> It can be used offensively and defensivly.
-> :small_blue_diamond:Offensively you can use it when the caller counting down 54321 to protect allies from a possible counter engage. 
-> :small_blue_diamond:Defensivly you can use it after the engage while kiting or when the enemy is trying to engage on us.
-> :small_orange_diamond:After using your E you can heal all people that passed throught it by auto attacking any enemy close to you.
+### Guard Rune (W3)
+> Very important spell. It gives us **damage resistance** and **immunity to forced movement effects and stuns**. Use it when we are crossing bridges and chokes so we don't get pulled and wiped in a bad place. Also use it when the enemy caller trying to engage on us so we don't get pulled and to get bonus damage resistance.
+### Blessed Aurora (E)
+> Your main spell, you create a wall of energy that gives whoever pass in it increased movement speed and a defensive shield.
+> **when to use it?**
+> :small_blue_diamond:Offensively you can use it when the caller counting down 54321 to protect allies from a possible counter engages.
+> :small_blue_diamond:Defensivly you can use it after the engage while kiting or when the enemy is trying to engage on us, it's like your are using rootbound or enegmatic.
+## Use cases
+:small_orange_diamond:When enemy caller is walking to you, he transform and try to pull you!! you drop a guard rune then you use your E
+:small_orange_diamond:When we are trying to engage, our caller is counting down 54321 you use your E to give our players some speed and defensives while engaging
+:small_orange_diamond:When enemy caller pull our team, you drop a guard rune for them then you give them your E for defensive shield
+:small_orange_diamond:When we finish an engage and we didn't kill !! the enemy will try to counter engage, you need to give us your E to help us go back to safety
+:small_orange_diamond:You can choose how to use your E spell depends on the situation, just make sure it help us at that time
