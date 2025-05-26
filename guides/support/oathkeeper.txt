@@ -9,7 +9,7 @@ The Oathkeeper gives us increased movement speed and a shield that absorbs a lar
 > Your main spell, you create a wall of energy that gives whoever pass in it increased movement speed and a defensive shield.
 > **when to use it?**
 > :small_blue_diamond:Offensively you can use it when the caller counting down 54321 to protect allies from a possible counter engages.
-> :small_blue_diamond:Defensivly you can use it after the engage while kiting or when the enemy is trying to engage on us, it's like your are using rootbound or enegmatic.
+> :small_blue_diamond:Defensivly you can use it after the engage while kiting or when the enemy is trying to engage on us, it's like you are using Rootbound or Enigmatic.
 ## Use cases
 :small_orange_diamond:When enemy caller is walking to you, he transform and try to pull you!! you drop a guard rune then you use your E
 :small_orange_diamond:When we are trying to engage, our caller is counting down 54321 you use your E to give our players some speed and defensives while engaging

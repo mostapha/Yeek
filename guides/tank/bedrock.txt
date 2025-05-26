@@ -1,9 +1,9 @@
 # Bedrock Mace  
-Your job as a Bedrock Mace is to peel and help us kite, keeping us away from the enemy zerg. After we do our engage, you need to use your E to stop enemy zerg from reaching us. Use your E diagonally to block as much space as possible; dont just drop it in a straight line because they can easily pass it. Just make sure you make it hard for them to get through.  
+Your job as a Bedrock Mace is to peel and help us kite, keeping us away from the enemy zerg. After we do our engage, you need to use your E to stop enemy zerg from reaching us. Use your E diagonally to block as much space as possible; don't just drop it in a straight line because they can easily pass through it. Just make sure you make it hard for them to get through.  
 ## Spells  
 ### Sacred Ground (Q3)  
 > Keep spamming your Q ability in front of us so if the enemy tries to engage, they get silenced and slowed. Keep using Q on the ground whenever you can.  
 ### Guard Rune (W3)  
-> Very important spell. It gives us *damage resistance* and *immunity to forced movement effects and stuns*. Use it when were crossing bridges and chokes so we dont get clumped and wiped there. Also use it when the enemy caller tries to engage on us, so we dont get pulled and to give us damage resistance.  
+> Very important spell. It gives us *damage resistance* and *immunity to forced movement effects and stuns*. Use it when we're crossing bridges and chokes so we don't get clumped and wiped there. Also use it when the enemy caller tries to engage on us, so we dont get pulled and to give us damage resistance.  
 ### Force of Nature (E)  
 > A defensive wall that knocks back anyone who touches it by 18m. Use it to keep enemies away from us. Use it in a diagonal way so it covers as much space as possible.

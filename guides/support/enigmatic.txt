@@ -2,7 +2,7 @@
 A defensive support weapon that gives shields to allies within a 5m radius while channeling. It's used as a defensive tool when the enemy zerg is engaging on us.  
 ## Spells  
 ### Arcane Protection (Q2)  
-> You use it to give people shields.  
+> Use it to give people shields.  
 ### Motivating Cleanse (W2)  
 > You use it to cleanse people if they have crowd control effects (stun, silence, root...) on them.  
 ### Protective Beam (E)  

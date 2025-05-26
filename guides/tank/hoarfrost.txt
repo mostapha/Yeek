@@ -4,6 +4,6 @@ Hoarfrost is a good peel weapon. Your role is to keep slowing enemies and pushin
 ### Frozen Surge (Q3)  
 > Keep slowing the enemy zerg with your Q whenever you don't have other spells to use.  
 ### Frost Nova (W3)  
-> Use your W to get closer to us or escape from the enemy zerg. Since youll be spamming your Q a lot, you might end up behind, so use W to keep up with our zerg when kiting. This ability also has a stun, so try to use it when you're near enemy players.  
+> Use your W to get closer to us or escape from the enemy zerg. Since you'll be spamming your Q a lot, you might end up behind, so use your W to keep up with our zerg when kiting. This ability also has a stun, so try to use it when you're near enemy players.  
 ### Avalanche (E)  
 > Use your E when the enemy zerg is trying to engage on us or when we are trying to kite away. Your E knocks back enemy players and creates a slow area after the knock. This helps us disengage and stay away from the enemy zerg until we get our cooldowns back.

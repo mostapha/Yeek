@@ -12,6 +12,6 @@ Your job as Great Arcane is to stop enemies and peel for us. Stay somewhere in f
 :small_orange_diamond: Don't stop the enemy caller only. Try to stop as many DPS as possible so they don't do damage, and the caller wastes his E.  
 :small_orange_diamond: Don't use your E when we are trying to engage. If you use your E while were engaging, they become immune to damage, so only use your E when were not engaging.  
 :small_blue_diamond: Use your E to help us get our cooldowns back. After we do an engage, you can use your E on the enemy zerg to give us time to kite back and regroup.  
-:small_blue_diamond:Always use your W to cleanse us from debuffs and crowd control (roots, stuns, slows, and silences). The moment we get one of these effects, cleanse us with your W. The faster, the better.  
+:small_blue_diamond: Always use your W to cleanse us of debuffs and crowd control effects (roots, stuns, slows, and silences). The moment we get one of these effects, cleanse us with your W. The faster, the better.  
 :small_blue_diamond:Use your Q to shield people who need healing. Always use your Q to give a shield to people who need it. If no one needs it, you can spam it on a tank or yourself.  
 :small_blue_diamond:You can use your E offensively to set up engages. When the caller asks you to use your E on the enemy (by saying something like "Give me GA front"), try to catch close enemies with your E so the caller can engage on them after the freeze ends.
