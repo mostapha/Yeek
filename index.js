@@ -96,6 +96,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
     try {
       const guideText = await readFile(new URL(`./guides/${path}`, import.meta.url), 'utf8');
+      console.log(path, 'guide length:', guideText.length, guideText.trim().length);
       await interaction.reply({ content: guideText, flags: 64 });
     } catch (err) {
       console.error(err);
