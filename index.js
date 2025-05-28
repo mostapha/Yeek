@@ -97,6 +97,12 @@ I made this based on my own experience and what I know about the weapons. There 
     try {
       const guideText = await readFile(new URL(`./guides/${path}`, import.meta.url), 'utf8');
       await interaction.reply({ content: guideText, flags: 64 });
+
+      // Get nickname or fallback to username/tag
+      const displayName = interaction.member?.displayName || interaction.member?.nickname || interaction.user.tag;
+
+      // Log the event
+      console.log(`${weapon} guide requested by: ${displayName} (ID: ${interaction.user.id})`);
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: 'Error loading guide.', flags: 64 });
