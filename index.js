@@ -1,12 +1,52 @@
 import { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events } from 'discord.js';
 import { config } from 'dotenv';
-import { readFile } from 'fs/promises';
-import guides from './guides.json' with { type: 'json' };
+import { readFile, writeFile } from 'fs/promises';
+import { readFileSync as readSync } from 'fs';
+import guides from './guides.json' assert { type: 'json' };
+
 
 config();
 
+const statsPath = new URL('./stats.json', import.meta.url);
+let stats;
+
+// Load existing stats or initialize
+try {
+  const raw = readSync(statsPath);
+  stats = JSON.parse(raw);
+} catch {
+  stats = { weapons: {}, users: {} };
+}
+if (!stats.names) stats.names = {};
+
+const saveStats = async () => {
+  try {
+    await writeFile(statsPath, JSON.stringify(stats, null, 2));
+  } catch (err) {
+    console.error('Failed to save stats:', err);
+  }
+};
+
+// Update in-memory stats and persist
+function recordStat(userId, weapon, displayName) {
+  // Weapon totals
+  stats.weapons[weapon] = (stats.weapons[weapon] || 0) + 1;
+
+  // Per-user breakdown
+  if (!stats.users[userId]) {
+    stats.users[userId] = { total: 0, weapons: {} };
+  }
+  stats.users[userId].total++;
+  stats.users[userId].weapons[weapon] = (stats.users[userId].weapons[weapon] || 0) + 1;
+
+  stats.names[userId] = displayName;
+
+  saveStats();
+}
+
+
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers]
 });
 
 client.once(Events.ClientReady, () => {
@@ -102,7 +142,11 @@ I made this based on my own experience and what I know about the weapons. There 
       const displayName = interaction.member?.displayName || interaction.member?.nickname || interaction.user.tag;
 
       // Log the event
-      console.log(`${weapon} guide requested by: ${displayName} (ID: ${interaction.user.id})`);
+      if (interaction.user.id !== '760271416544722944') {
+        console.log(`${weapon} guide requested by: ${displayName} (ID: ${interaction.user.id})`);
+      }
+      recordStat(interaction.user.id, weapon, displayName);
+
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: 'Error loading guide.', flags: 64 });
