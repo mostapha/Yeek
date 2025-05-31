@@ -120,7 +120,7 @@ I made this based on my own experience and what I know about the weapons. There 
       }
 
       await interaction.channel.send({
-        content: `# ${role}`,
+        content: `## ${role}`,
         components
       });
     }

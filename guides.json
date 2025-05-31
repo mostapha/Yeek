@@ -15,13 +15,15 @@
     "Occult": "support/occult.txt",
     "Oathkeeper": "support/oathkeeper.txt",
     "Enigmatic": "support/enigmatic.txt",
-    "Locus": "support/locus.txt",
-    "Damnation": "support/damnation.txt",
-    "Lifecurse": "support/lifecurse.txt",
-    "Carving": "support/carving.txt",
-    "Spirithunter": "support/spirithunter.txt",
-    "Rotcaller": "support/rotcaller.txt",
-    "Incubus": "support/incubus.txt"
+    "Locus": "support/locus.txt"
+  },
+    "🎯 DPS support": {
+    "Damnation": "dps-support/damnation.txt",
+    "Lifecurse": "dps-support/lifecurse.txt",
+    "Carving": "dps-support/carving.txt",
+    "Spirithunter": "dps-support/spirithunter.txt",
+    "Rotcaller": "dps-support/rotcaller.txt",
+    "Incubus": "dps-support/incubus.txt"
   },
   "⚔️ DPS": {
     "Permafrost": "dps/permafrost.txt",
