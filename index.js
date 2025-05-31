@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
 import { readFileSync as readSync } from 'fs';
-import guides from './guides.json' assert { type: 'json' };
+import guides from './guides.json' with { type: 'json' };
 
 
 config();
