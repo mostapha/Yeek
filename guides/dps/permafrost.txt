@@ -1,5 +1,5 @@
 # Permafrost  
-Perma is one of the most important DPS roles in the party. Besides your damage, it helps us stun clumps and guide other DPS to a clear target to hit.  
+Perma is one of the most important DPS roles in the party. Besides dealing damage, it stuns enemy clumps and help other DPS know where to hit.  
 ## Spells  
 ### Ice Shard (Q2)
 > Works well with Scholar Robe. After using your E, if you have some spare time to deal more damage, spam your Q on the enemy clump, but watch out for Demon Armor reflect.

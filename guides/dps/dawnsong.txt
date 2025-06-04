@@ -1,5 +1,5 @@
 # Dawnsong  
-Dawnsong is a good DPS weapon that offers anti-heal and damage over time. It requires a bit more skill compared to other DPS weapons since you have to aim your E.
+Dawnsong is a strong DPS weapon that offers anti-heal and damage over time. It requires a bit more skill compared to other DPS weapons since you have to aim your E spell.
 ## Spells  
 ### Burning Field (Q2)
 > Keep using your Q spell on chokes, bridges, and to bully enemy tanks.  

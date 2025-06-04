@@ -1,11 +1,11 @@
-# Rift Glaive  
-One of the best instant damage DPS in the game. It's not hard to play, just keep your Q stacks, and when the caller engages, hit the clump.  
-## Spells  
-### Q2: Spirit Spear  
+# Rift Glaive
+One of the best weapons for instant high DPS. It's easy to play, just maintain your Q stacks, and when the caller engages, hit the clump.
+## Spells
+### Spirit Spear (Q2)
 > Use your Q ability to get a **Spirit Spear charge**. The more charges you have, the more damage you get from your E spell. When you have 3 charges, you can slow down using the Q ability so you don't run out of mana too fast.  
-### W4: Deflecting Spin  
-> Use your W spell to either regenerate mana after using your E spell or when you need to defend yourself against enemy damage, as it also gives you damage resistance.  
-### E: Razor's Edge  
+### Deflecting Spin (W4)
+> Use your W spell mostly to get your **mana** back. You can use it right after your E, or right after Q if you're low on mana. It also makes you take less damage and reflects all physical damage, so it's good to use if enemies start focusing you.
+### Razor's Edge (E)
 > Your main damage. Use it when the caller is engaging. Make sure you always have 3 "Q charges" before using your E to maximize damage.  
-## How to play it  
-Be in a good position, away from the frontline. Keep using your Q ability to maintain 3 charges at all times. When the caller is counting down 54321, step up, use your buffs (boots, jacket...), and hit the clump on 1.
+## How to play it
+Stay in a safe position behind your frontline. Keep using your Q ability to always have 3 charges (and use W spell as needed to get mana back). When the caller counts down "5-4-3-2-1," step forward, activate your buffs, and hit the enemy clump on 1.

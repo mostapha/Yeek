@@ -1,5 +1,5 @@
 # Heavy Mace  
-Your job as Heavy Mace is to stop enemy engages. You need to be in front of us, between us and the enemies, and wait for the enemy to try to engage, then you stop them.  
+Your job as Heavy Mace is to stop enemy engages. Stay in front of us, between our team and the enemies. Wait for enemies to try to engage, then stop them.
 ## Spells  
 ### Sacred Ground (Q3)  
 > Keep spamming your Q ability in front of us, so if the enemy tries to engage, they get silenced and slowed. Keep using Q on the ground whenever you can.  
@@ -8,4 +8,5 @@ Your job as Heavy Mace is to stop enemy engages. You need to be in front of us, 
 ### Battle Howl (E)  
 > Silence enemies. Use it on the enemy zerg the moment they try to engage. Try to catch as many as possible and use it on them.  
 
-In general, your job is to defend us by not letting the enemy zerg engage. The moment you feel they are trying to engage, step up and stop them. You can jump on them with your W and silence them with your E. You can tell when they're trying to engage by watching when they use their buff (boots, armors, and helmets)
+In general, your job is to defend us by stopping the enemy zerg from engaging. When you see them trying to engage, step up and stop them. Jump on them with your W and silence them with your E.  
+You can tell when they are about to engage by watching when they use their buffs (boots, armor, and helmets).
