@@ -170,7 +170,6 @@ client.on('channelCreate', async (channel) => {
         .setColor(0x2ecc71) // green tone, change if you want
         .setTitle('Verification Checklist')
         .setDescription(`
-Welcome to the **Highland Brotherhood!**  
 Please follow the steps below so we can verify your account:
 
 📋 **Answer these questions:**
@@ -180,9 +179,9 @@ Please follow the steps below so we can verify your account:
 
 🖼️ **Send us the following screenshots:**
 • Your character stats  
-• Your personal faction overview (3rd tab)
+• Your personal faction warfare overview (3rd tab)
 
-📌 **Make sure your faction screenshot:**
+📌 **Make sure your faction warfare screenshot:**
 • Is full screen and not cropped  
 • Clearly shows your in-game name  
 • Shows the enlistment and all-time points tab
