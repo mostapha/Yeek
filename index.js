@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events } from 'discord.js';
+import { Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder } from 'discord.js';
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
 import { readFileSync as readSync } from 'fs';
@@ -74,7 +74,7 @@ client.on(Events.InteractionCreate, async interaction => {
     const memberRoles = interaction.member.roles;
 
     if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
-      await interaction.reply({ content: 'You don’t have permission to use this command.', flags: 64 });
+      await interaction.reply({ content: 'You don\'t have permission to use this command.', flags: 64 });
       return;
     }
 
@@ -152,6 +152,49 @@ I made this based on my own experience and what I know about the weapons. There 
       await interaction.reply({ content: 'Error loading guide.', flags: 64 });
     }
   }
+});
+
+client.on('channelCreate', async (channel) => {
+  if (!channel.isTextBased() || channel.type !== ChannelType.GuildText) return;
+
+  const ticketCategoryId = process.env.TICKETS_CATEGORY_ID;
+  if (channel.parentId !== ticketCategoryId) return;
+  if (!channel.name.startsWith('ticket-')) return;
+
+
+  setTimeout(async () => {
+    try {
+      if (!channel.permissionsFor(channel.guild.members.me).has('SendMessages')) return;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2ecc71) // green tone, change if you want
+        .setTitle('Verification Checklist')
+        .setDescription(`
+Welcome to the **Highland Brotherhood!**  
+Please follow the steps below so we can verify your account:
+
+📋 **Answer these questions:**
+• Are you planning to change faction? [Yes / No]  
+• Can you join voice chat to hear calls? [Yes / No — if not, explain why]  
+• Do you have a vouch? [Name of your vouch]
+
+🖼️ **Send us the following screenshots:**
+• Your character stats  
+• Your personal faction overview (3rd tab)
+
+📌 **Make sure your faction screenshot:**
+• Is full screen and not cropped  
+• Clearly shows your in-game name  
+• Shows the enlistment and all-time points tab
+
+Once you've sent everything, we’ll get back to you as soon as possible. Thanks!
+`);
+
+      await channel.send({ embeds: [embed] });
+    } catch (err) {
+      console.error(`❌ Failed to send follow-up message in ${channel.name}:`, err);
+    }
+  }, 2000); // wait 2 seconds
 });
 
 client.login(process.env.BOT_TOKEN);
