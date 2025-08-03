@@ -170,23 +170,18 @@ client.on('channelCreate', async (channel) => {
         .setColor(0x2ecc71) // green tone, change if you want
         .setTitle('Verification Checklist')
         .setDescription(`
-Please follow the steps below so we can verify your account:
+Follow the steps below so we can verify your account:
 
-📋 **Answer these questions:**
-• Are you planning to change faction? [Yes / No]  
-• Can you join voice chat to hear calls? [Yes / No — if not, explain why]  
+1️⃣ ** Answer these questions:**
+• Do you agree to play **only** for Martlock faction? [Yes / No]  
+• Can you join voice chat to hear calls? [Yes / No (and tell us why)]  
 • Do you have a vouch? [Name of your vouch]
 
-🖼️ **Send us the following screenshots:**
-• Your character stats  
-• Your personal faction warfare overview (3rd tab)
+2️⃣ ** Send us the following screenshots:**
+• Your character stats
+• Your personal faction warfare overview (3rd tab, showing enlist and all time points)
 
-📌 **Make sure your faction warfare screenshot:**
-• Is full screen and not cropped  
-• Clearly shows your in-game name  
-• Shows the enlistment and all-time points tab
-
-Once you've sent everything, we’ll get back to you as soon as possible. Thanks!
+After that, we'll get back to you as soon as possible. Thanks!
 `);
 
       await channel.send({ embeds: [embed] });
