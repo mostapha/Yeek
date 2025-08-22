@@ -153,7 +153,7 @@ I made this based on my own experience and what I know about the weapons. There 
         await member.roles.add(roleId);
       }
 
-      await interaction.reply({ content: `Roles are given to <@${member.id}>` });
+      await interaction.reply({ content: `Roles are given to <@${member.id}>`, ephemeral: true });
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: '❌ Failed to give roles.', ephemeral: true });
