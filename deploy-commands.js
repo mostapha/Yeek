@@ -1,4 +1,4 @@
-import { REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType  } from 'discord.js';
 import { config } from 'dotenv';
 
 config();
@@ -7,6 +7,11 @@ const commands = [
   new SlashCommandBuilder()
     .setName('weapons')
     .setDescription('Shows basic Albion clap weapons guide')
+    .toJSON(),
+
+    new ContextMenuCommandBuilder()
+    .setName('Verify')               // This will show in right-click menu
+    .setType(ApplicationCommandType.User)
     .toJSON()
 ];
 

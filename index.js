@@ -126,6 +126,40 @@ I made this based on my own experience and what I know about the weapons. There 
     }
   }
 
+  if (interaction.isUserContextMenuCommand() && interaction.commandName === 'Verify') {
+    try {
+
+      const allowedRoles = [
+        '992470540717654037', // admin in jmboy's server
+        '1265029315532161176', // cheiveman
+        '1247895646929817730' // highlord
+      ]; // role IDs
+      const memberRoles = interaction.member.roles;
+
+      if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
+        await interaction.reply({ content: 'You don\'t have permission to use this command.', flags: 64 });
+        return;
+      }
+
+      const member = await interaction.guild.members.fetch(interaction.targetId);
+
+      // roles to add
+      const roleIds = [
+        '1247887205133713438', // highlander
+        '1338515855709044757' // eolgard
+      ];
+
+      for (const roleId of roleIds) {
+        await member.roles.add(roleId);
+      }
+
+      await interaction.reply({ content: `Roles are given to <@${member.id}>` });
+    } catch (err) {
+      console.error(err);
+      await interaction.reply({ content: '❌ Failed to give roles.', ephemeral: true });
+    }
+  }
+
   if (interaction.isButton()) {
     const [category, weapon] = interaction.customId.split('::');
     const path = guides[category]?.[weapon];
