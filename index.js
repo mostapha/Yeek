@@ -206,14 +206,14 @@ client.on('channelCreate', async (channel) => {
         .setDescription(`
 Follow the steps below so we can verify your account:
 
-1️⃣ ** Answer these questions:**
-• Do you agree to play **only** for Martlock faction? [Yes / No]  
-• Can you join voice chat to hear calls? [Yes / No (and tell us why)]  
-• Do you have a vouch? [Name of your vouch]
+<:N9_1:1410821676924538891>**Answer these questions:**
+<:STBF11:1410819715588296815>Do you agree to play **only** for Martlock faction?
+<:STBF11:1410819715588296815>Do you understand English?
+<:STBF11:1410819715588296815>Can you join voice chat to hear calls? (no need to talk)
 
-2️⃣ ** Send us the following screenshots:**
-• Your character stats
-• Your personal faction warfare overview (3rd tab, showing enlist and all time points)
+<:N9_2:1410821683320721478>**Send us the following screenshots:**
+<:STBF11:1410819715588296815>Your character stats
+<:STBF11:1410819715588296815>Your personal faction warfare overview (3rd tab, showing enlist and all time points)
 
 After that, we'll get back to you as soon as possible. Thanks!
 `);
