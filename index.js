@@ -160,6 +160,36 @@ I made this based on my own experience and what I know about the weapons. There 
     }
   }
 
+  if (interaction.isChatInputCommand() && interaction.commandName === 'bandit') {
+    const timeStr = interaction.options.getString('time');
+    const show = interaction.options.getBoolean('show') || false;
+
+    // Validate HH:MM
+    const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(timeStr);
+    if (!match) {
+      return interaction.reply({ content: '❌ Please use format HH:MM (24h). Example: 13:22', ephemeral: true });
+    }
+
+    const [, hh, mm] = match.map(Number);
+
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(hh, mm, 0, 0);
+
+    // earliest = +3.5h
+    const earliest = new Date(start.getTime() + 3.5 * 60 * 60 * 1000);
+    // latest = +6h
+    const latest = new Date(start.getTime() + 6 * 60 * 60 * 1000);
+
+    const fmt = (d) => d.toTimeString().slice(0, 5); // HH:MM
+
+    await interaction.reply({
+      content: `If bandit started at **${timeStr}**, the next one would be around **${fmt(earliest)} to ${fmt(latest)}**`,
+      ephemeral: !show
+    });
+  }
+
+
   if (interaction.isButton()) {
     const [category, weapon] = interaction.customId.split('::');
     const path = guides[category]?.[weapon];
