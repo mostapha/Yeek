@@ -176,18 +176,25 @@ I made this based on my own experience and what I know about the weapons. There 
     const start = new Date(now);
     start.setHours(hh, mm, 0, 0);
 
-    // earliest = +3.5h
-    const earliest = new Date(start.getTime() + 3.5 * 60 * 60 * 1000);
-    // latest = +6h
-    const latest = new Date(start.getTime() + 6 * 60 * 60 * 1000);
+    // earliest = +3.5h - 15m
+    const earliest = new Date(start.getTime() + (3.5 * 60 - 15) * 60 * 1000);
+    // latest = +6h - 15m
+    const latest = new Date(start.getTime() + (6 * 60 - 15) * 60 * 1000);
 
     const fmt = (d) => d.toTimeString().slice(0, 5); // HH:MM
 
+    const embed = new EmbedBuilder()
+      .setColor(0x2582F5)
+      .setDescription(
+        `If Bandit started at **${timeStr}**, the next one will be between **${fmt(earliest)}** and **${fmt(latest)}** at the latest.`
+      );
+
     await interaction.reply({
-      content: `If Bandit started at **${timeStr}**, the next one will be between **${fmt(earliest)}** and **${fmt(latest)}** at the latest.`,
+      embeds: [embed],
       ephemeral: !show
     });
   }
+
 
 
   if (interaction.isButton()) {
