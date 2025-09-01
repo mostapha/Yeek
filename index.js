@@ -184,7 +184,7 @@ I made this based on my own experience and what I know about the weapons. There 
     const fmt = (d) => d.toTimeString().slice(0, 5); // HH:MM
 
     await interaction.reply({
-      content: `If bandit started at **${timeStr}**, the next one would be around **${fmt(earliest)} to ${fmt(latest)}**`,
+      content: `If Bandit started at **${timeStr}**, the next one will be between **${fmt(earliest)}** and **${fmt(latest)}** at the latest.`,
       ephemeral: !show
     });
   }
