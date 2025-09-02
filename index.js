@@ -184,10 +184,12 @@ I made this based on my own experience and what I know about the weapons. There 
     const fmt = (d) => d.toTimeString().slice(0, 5); // HH:MM
 
     const embed = new EmbedBuilder()
-      .setColor(0x2582F5)
+      .setColor(0xFEFE92)
       .setDescription(
         `If Bandit started at **${timeStr}**, the next one will be between **${fmt(earliest)}** and **${fmt(latest)}** at the latest.`
-      );
+      )
+      .setThumbnail("https://i.imgur.com/t4QMNiq.png");
+
 
     await interaction.reply({
       embeds: [embed],
