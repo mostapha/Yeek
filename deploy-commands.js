@@ -19,7 +19,7 @@ const commands = [
     .setDescription('Calculate next bandit time window')
     .addStringOption(option =>
       option.setName('time')
-        .setDescription('Start time (HH:MM, 24h format)')
+        .setDescription('Start time (HH:MM, 24h format); use UTC time')
         .setRequired(true)
     )
     .addBooleanOption(option =>

@@ -199,7 +199,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
 
 
-  if (interaction.isButton()) {
+  if (interaction.isButton() && interaction.customId.includes('::')) {
     const [category, weapon] = interaction.customId.split('::');
     const path = guides[category]?.[weapon];
 
