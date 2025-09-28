@@ -27,6 +27,11 @@ const commands = [
         .setDescription('Show result to everyone? (default: no)')
         .setRequired(false)
     )
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('roles')
+    .setDescription('Shows the zvz roles basics guide')
     .toJSON()
 
 ];
