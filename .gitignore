@@ -7,3 +7,4 @@ temp/
 stats.json
 .eslintrc.js
 jsconfig.json
+eslint.config.js

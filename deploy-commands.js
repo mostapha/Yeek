@@ -1,4 +1,4 @@
-import { REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType } from 'discord.js';
+import { REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType, PermissionFlagsBits } from 'discord.js';
 import { config } from 'dotenv';
 
 config();
@@ -12,6 +12,13 @@ const commands = [
   new ContextMenuCommandBuilder()
     .setName('Verify')               // This will show in right-click menu
     .setType(ApplicationCommandType.User)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .toJSON(),
+
+  new ContextMenuCommandBuilder()
+    .setName('Update name')
+    .setType(ApplicationCommandType.User)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
     .toJSON(),
 
   new SlashCommandBuilder()
