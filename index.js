@@ -239,7 +239,7 @@ const rolesTree = [
                 name: 'Incubus',
                 title: 'Incubus Mace',
                 icon: 'https://render.albiononline.com/v1/item/T8_MAIN_MACE_HELL?quality=4&size=60',
-                text: "The incubus mace can reduce max and current HP to enemies by 40% for 8 seconds, it take nearly half HP of players; and because it's a mace we also get guard rune and silence Q"
+                text: "The incubus mace can reduce max and current HP to enemies by 25% for 8 seconds, it take nearly half HP of players; and because it's a mace we also get guard rune and silence Q"
               },
               {
                 name: 'Realmbreaker',
