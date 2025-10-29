@@ -776,7 +776,26 @@ I made this based on my own experience and what I know about the weapons. There 
 
       try {
         const guideText = await readFile(new URL(`./guides/${path}`, import.meta.url), 'utf8');
-        await interaction.reply({ content: guideText, flags: 64 });
+        // await interaction.reply({ content: guideText, flags: 64 });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xE67E22)
+          .setTitle(weapon)
+          .setDescription(guideText)
+          .setFooter({ text: `Exclusive to Highland Brotherhood` });
+
+        const askButton = new ButtonBuilder()
+          .setCustomId(`ask:${weapon}`)
+          .setLabel('Have questions or feedback?')
+          .setStyle(ButtonStyle.Primary)
+
+        const row = new ActionRowBuilder().addComponents(askButton);
+
+        await interaction.reply({
+          embeds: [embed],
+          components: [row],
+          flags: 64
+        });
 
         // Get nickname or fallback to username/tag
         const displayName = interaction.member?.displayName || interaction.member?.nickname || interaction.user.tag;
@@ -792,6 +811,27 @@ I made this based on my own experience and what I know about the weapons. There 
         await interaction.reply({ content: 'Error loading guide.', flags: 64 });
       }
 
+    } else if (interaction.customId.startsWith('ask:')) {
+      const weapon = interaction.customId.split(':')[1]; // lifecurse
+
+      // Build modal
+      const modal = new ModalBuilder()
+        .setCustomId(`modal:ask:${weapon}`) // pass weapon forward
+        .setTitle(`About ${weapon}`);
+
+      const questionInput = new TextInputBuilder()
+        .setCustomId('question_input')
+        .setLabel("What's on your mind?")
+        .setStyle(TextInputStyle.Paragraph) // multi-line
+        .setRequired(true)
+        .setMaxLength(1000);
+
+      const row = new ActionRowBuilder().addComponents(questionInput);
+      modal.addComponents(row);
+
+      // Show the modal
+      await interaction.showModal(modal);
+      return;
     } else if (interaction.customId.startsWith('confirmRename:')) {
 
       const [, userId, encodedName] = interaction.customId.split(':');
@@ -861,7 +901,63 @@ I made this based on my own experience and what I know about the weapons. There 
 
     }
 
-  } else if (interaction.type === InteractionType.ModalSubmit){
+  } else if (interaction.isModalSubmit()){
+
+
+    if (interaction.customId && interaction.customId.startsWith('modal:ask:')) {
+      const parts = interaction.customId.split(':');
+      const weapon = parts[2] || 'unknown-weapon';
+      const question = interaction.fields.getTextInputValue('question_input');
+
+      // Build the embed to send to you
+      const infoEmbed = new EmbedBuilder()
+        .setColor(0xE67E22)
+        .setTitle(weapon)
+        .setDescription(question.length > 1024 ? question.slice(0, 1018) + '…' : question)
+        .addFields(
+          { name: 'From', value: `${interaction.member?.nickname || '—'} (${interaction.user.tag})`, inline: true },
+          { name: 'User ID', value: `${interaction.user.id}`, inline: true },
+          { name: 'Mention', value: `<@${interaction.user.id}>`, inline: true },
+        )
+        .setTimestamp();
+
+      infoEmbed.setAuthor({
+        name: `${interaction.member?.nickname || interaction.user.tag}`,
+        iconURL: interaction.user.displayAvatarURL({ dynamic: true, size: 256 })
+      });
+
+      // IDs to replace later
+      const RECIPIENT_ID = '760271416544722944'; // placeholder - replace with your ID later
+      const FALLBACK_CHANNEL_ID = '1322532853178695730'; // placeholder - replace with your fallback channel ID
+
+      // Confirm to the submitter (ephemeral)
+      await interaction.reply({ content: 'Your input was sent.', ephemeral: true });
+
+      // Try to DM the recipient
+      try {
+        const user = await interaction.client.users.fetch(RECIPIENT_ID);
+        await user.send({ embeds: [infoEmbed] });
+        console.log(`Question DM sent to ${RECIPIENT_ID} from ${interaction.user.tag}`);
+      } catch (dmErr) {
+        console.error('Failed to DM recipient — falling back to channel:', dmErr);
+        // Fallback: send to channel
+        try {
+          const channel = await interaction.client.channels.fetch(FALLBACK_CHANNEL_ID);
+          if (channel && channel.isTextBased()) {
+            await channel.send({ embeds: [infoEmbed] });
+            console.log('Question sent to fallback channel.');
+          } else {
+            console.error('Fallback channel not found or not text-based.');
+          }
+        } catch (chanErr) {
+          console.error('Failed to send to fallback channel as well:', chanErr);
+        }
+      }
+
+      return;
+    }
+
+  
 
     if (!interaction.customId.startsWith('renameModal:')) return;
 
