@@ -1417,6 +1417,10 @@ client.on('messageCreate', async (message) => {
       return message.reply('You need admin permission to register other users.');
     }
 
+    if (nameArg.length > 16 || /[^A-Za-z0-9]/.test(nameArg)) {
+      return message.reply(`"\`${nameArg}\`" is not a valid character name. Use the command like this: \`!register gamer123\``);
+    }
+
     // ---- PRE-API CHECKS ----
 
     // 1) Is the target Discord account already registered?
@@ -1494,10 +1498,13 @@ client.on('messageCreate', async (message) => {
       }
       return;
     }
-    
- 
-    return message.reply(`No players found matching "${nameArg}".`);
-    
+
+    if((nameArg.toLowerCase() === 'start')){
+      return message.reply(`"\`${nameArg}\`" is not your character name. Use the command like this: \`!register gamer123\``);
+    }
+
+    return message.reply(`No players found matching "\`${nameArg}\`".`);
+
   }
 
   // ---- REGISTERINFO ----
