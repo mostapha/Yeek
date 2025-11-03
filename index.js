@@ -1269,7 +1269,7 @@ client.on('messageCreate', async (message) => {
           value: 'Show game stats of registered users.',
           inline: false },
         { name: '!register @User <name>  or  !link @User <name>',
-          value: 'Admin-only. Link a game name to a Discord user',
+          value: 'Admin-only. Link a game name to a Discord user. !link does not change name of the user',
           inline: false },
         { name: '!unregister @User',
           value: 'Admin-only. un-link a game name from a Discord user and purge its roles',
@@ -1615,27 +1615,15 @@ client.on('messageCreate', async (message) => {
     // 4) Insert into DB and set nickname
     // new
     const result = await addRegistrationToDB(targetId, player, message.author.id);
-    let extraInfo = '';
     if (result.success) {
-      // after DB insertion succeeded
+      const guildMember = await message.guild.members.fetch(targetId);
+      // assign visitor role after successful registration
       try {
-        const guildMember = await message.guild.members.fetch(targetId);
-
-        // assign visitor role after successful registration
-        try {
-          await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${message.author.tag}`);
-        } catch (err) {
-          console.error('Failed to assign visitor role to ' + guildMember.user.tag + ':', err);
-        }
-          
-        await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${message.author.id}`);
+        await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${message.author.tag}`);
       } catch (err) {
-        console.error('Failed to set nickname to ' + player.Name + ': ', err);
-        extraInfo = `Failed to set nickname: ${err.message}`;
+        console.error('Failed to assign visitor role to ' + guildMember.user.tag + ':', err);
       }
-
-      await message.reply(`The character name ${player.Name}${player.GuildName ? ` from ${player.GuildName}` : ''} has been registered and linked to the account. ${extraInfo ? `(${extraInfo})` : ''}`);
-
+      await message.reply(`The character name ${player.Name}${player.GuildName ? ` from ${player.GuildName}` : ''} has been linked to the account.`);
     } else {
       await message.reply(`Failed: ${result.error}`);
     }
