@@ -1,14 +1,116 @@
 import { 
-  Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionType,
-  StringSelectMenuBuilder
+  Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
+  StringSelectMenuBuilder, RESTJSONErrorCodes
 } from 'discord.js';
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
 import { readFileSync as readSync } from 'fs';
 import guides from './guides.json' with { type: 'json' };
 
+import Database from 'better-sqlite3';
+import fs from 'fs';
+import path from 'path';
 
 config();
+
+// Config placeholders - replace with real IDs or load from env
+const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',') // allowed channels for non mods/admins
+const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
+
+// Albion API base
+const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
+
+// SQLite DB file location (in bot root)
+const DB_PATH = path.resolve('./registrations.sqlite3');
+
+// Initialize DB (creates file and table if needed)
+if (!fs.existsSync(DB_PATH)) {
+  // file will be created by better-sqlite3 automatically
+  console.log('Creating new SQLite DB at', DB_PATH);
+}
+const db = new Database(DB_PATH);
+
+// Create table if missing
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    discord_id TEXT NOT NULL UNIQUE,
+    game_name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    game_id TEXT NOT NULL,
+    registered_by TEXT NOT NULL,
+    registered_at TEXT NOT NULL
+  );
+`).run();
+
+// ---------- DB helpers ----------
+
+// applyRegistration inserts/updates DB
+async function addRegistrationToDB(targetDiscordId, player, registeredById) {
+  // DB operations:
+  try {
+    const stmt = db.prepare(`
+    INSERT INTO registrations (discord_id, game_name, game_id, registered_by, registered_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `);
+    stmt.run(targetDiscordId, player.Name, player.Id, registeredById);
+  } catch (err) {
+    console.error('DB write failed', err);
+    return { success: false, error: 'DB write failed' };
+  }
+
+  // Changing nickname should be done where you have guild context.
+  // It's easier to perform nickname change in the caller (origin) which has message/interaction & guild.
+  // So return success and let the caller set nickname afterwards.
+  return { success: true };
+}
+
+
+function removeRegistrationByDiscordId(discordId) {
+  const stmt = db.prepare(`DELETE FROM registrations WHERE discord_id = ?`);
+  return stmt.run(discordId);
+}
+
+function findByGameName(gameName) {
+  return db.prepare(`SELECT * FROM registrations WHERE game_name = ?`).get(gameName);
+}
+
+function findByDiscordId(discordId) {
+  return db.prepare(`SELECT * FROM registrations WHERE discord_id = ?`).get(discordId);
+}
+
+// ---------- Small register helpers ----------
+function checkDiscordRegistration(discordId) {
+  return findByDiscordId(discordId); // returns row or undefined
+}
+
+function checkGameRegistration(gameName) {
+  return findByGameName(gameName); // returns row or undefined
+}
+
+// parse args: returns { targetId, nameArg, mention }
+function parseRegisterArgs(message) {
+  const mention = message.mentions.users.first();
+  const parts = message.content.trim().split(/\s+/).slice(1); // after command
+  if (mention) parts.shift(); // remove mention token
+  const nameArg = parts.join(' ').trim();
+  const targetId = mention ? mention.id : message.author.id;
+  return { targetId, nameArg, mention };
+}
+
+// ---------- Albion API helper ----------
+async function searchAlbion(name) {
+  const url = ALBION_SEARCH_API + encodeURIComponent(name);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Albion API error: ' + res.status);
+  return res.json(); // contains players array
+}
+
+// ---------- permission helper ----------
+function isAdminOrMod(member) {
+  if (!member) return false;
+  return member.roles?.cache?.some(r => ADMINS_AND_MODS_IDS.includes(r.id));
+}
+
 
 const statsPath = new URL('./stats.json', import.meta.url);
 let stats;
@@ -500,7 +602,7 @@ function buildMessage(node, path) {
       for (const child of slice) {
         row.addComponents(
           new ButtonBuilder()
-            .setCustomId(`open:${[...path, child.name].join('>')}`)
+            .setCustomId(`zvzRoles_open:${[...path, child.name].join('>')}`)
             .setLabel(child.name)
             .setStyle(ButtonStyle.Primary)
         );
@@ -513,7 +615,7 @@ function buildMessage(node, path) {
   if (path.length > 0) {
     const backRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`back:${path.join('>')}`)
+        .setCustomId(`zvzRoles_back:${path.join('>')}`)
         .setLabel('⬅ Back')
         .setStyle(ButtonStyle.Secondary)
     );
@@ -527,7 +629,7 @@ function buildMessage(node, path) {
 
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildScheduledEvents]
+  intents: [GatewayIntentBits.GuildPresences, GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildScheduledEvents]
 });
 
 client.once(Events.ClientReady, () => {
@@ -551,6 +653,20 @@ function formatAlbionName(player) {
   const guildTag = `[${guild.slice(0, 5)}]`;
   return `${guildTag} ${player.Name}`;
 }
+
+// Helper: build nickname from guild name and player name
+function buildNickname(guildName, playerName) {
+  // if no guild name (empty string, null or whitespace) -> use only player name
+  if (!guildName || String(guildName).trim() === '') return String(playerName);
+
+  // take first 5 characters exactly (keeps spaces if present)
+  const firstFive = String(guildName).slice(0, 5);
+
+  // construct nickname and ensure it doesn't exceed Discord's 32-char limit
+  let nick = `[${firstFive}] ${playerName}`;
+  return nick;
+}
+
 
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -593,7 +709,7 @@ This is a simple guide for different weapons and roles in the game. Nothing fanc
 
 This guide is made for kite and clap comp playstyle. If you're playing a different comp, the weapons might be used differently.
 
-I made this based on my own experience and what I know about the weapons. There might be some mistakes or missing info, but I think it's a good starting point. Feel free to DM <@760271416544722944> for any feedback about it. You can check each weapon's guide by clicking the button and scrolling down.`
+I made this based on my own experience and what I know about the weapons. There might be some mistakes or missing info, but I think it's a good starting point. You can check each weapon's guide by clicking the button and scrolling down.`
         });
 
         // Loop through roles and send weapon buttons per category
@@ -655,7 +771,7 @@ I made this based on my own experience and what I know about the weapons. There 
           .setDescription(rolesMainEmbedText);
 
         const open_roles_guide_button = new ButtonBuilder()
-          .setCustomId('case:open_roles_guide') // A unique identifier for the button
+          .setCustomId('zvzRoles:open_roles_guide') // A unique identifier for the button
           .setLabel('Check Roles Info')           // The text displayed on the button
           .setStyle(ButtonStyle.Primary),  // The visual style of the button (e.g., Primary, Danger, Success, Secondary, Link)
 
@@ -706,6 +822,7 @@ I made this based on my own experience and what I know about the weapons. There 
         if (!show) {
           dt.flags = 64; // ephemeral
         }
+
 
         await interaction.reply(dt);
         break;
@@ -856,10 +973,10 @@ I made this based on my own experience and what I know about the weapons. There 
         components: []          // clears the old buttons
       });
 
-    } else {
+    } else if (interaction.customId.startsWith('zvzRoles')) {
 
       // Special button: open the root "Roles Guide" panel
-      if (interaction.customId === 'case:open_roles_guide') {
+      if (interaction.customId === 'zvzRoles:open_roles_guide') {
         const rootEmbed = buildMessage(startedPanelObject, []);
         return await interaction.reply(rootEmbed);
       }
@@ -880,10 +997,10 @@ I made this based on my own experience and what I know about the weapons. There 
       }
 
       // Handle actions
-      if (action === 'open') {
+      if (action === 'zvzRoles_open') {
         // Update the message with the selected node’s content
         await interaction.update(buildMessage(currentNode, path));
-      } else if (action === 'back') {
+      } else if (action === 'zvzRoles_back') {
         // Parent path = one level up
         const parentPath = path.slice(0, -1);
 
@@ -927,8 +1044,8 @@ I made this based on my own experience and what I know about the weapons. There 
       });
 
       // IDs to replace later
-      const RECIPIENT_ID = '760271416544722944'; // placeholder - replace with your ID later
-      const FALLBACK_CHANNEL_ID = '1322532853178695730'; // placeholder - replace with your fallback channel ID
+      const RECIPIENT_ID = '760271416544722944';
+      const FALLBACK_CHANNEL_ID = '1322532853178695730';
 
       // Confirm to the submitter (ephemeral)
       await interaction.reply({ content: 'Your input was sent.', ephemeral: true });
@@ -1067,6 +1184,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
 });
 
+
 client.on('channelCreate', async (channel) => {
   if (!channel.isTextBased() || channel.type !== ChannelType.GuildText) return;
 
@@ -1103,5 +1221,575 @@ After that, we'll get back to you as soon as possible. Thanks!
     }
   }, 2000); // wait 2 seconds
 });
+
+
+const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link','kb', 'modkb', 'registerhelp']),
+      VISITOR_ROLE_ID = process.env.VISITOR_ROLE_ID,
+      MESSAGE_USE_IN_ALLOWED_CHANNELS = `Please use register commands in the https://discord.com/channels/1247740449959968870/1247939976667205633 or https://discord.com/channels/1247740449959968870/1275402208845893644 channel.`;
+
+client.on('messageCreate', async (message) => {
+
+  if (message.author?.bot) return;
+
+  const raw = message.content;
+  if (!raw || raw.charCodeAt(0) !== 33) return; // '!' === 33
+  if (raw.length < 3) return;
+
+  const firstSpace = raw.indexOf(' ');
+  const cmd = (firstSpace === -1 ? raw.slice(1) : raw.slice(1, firstSpace)).toLowerCase();
+
+  if (!ALLOWED_COMMANDS.has(cmd)) return;
+
+  // Check channel restriction unless admin
+  const callerIsAdmin = isAdminOrMod(message.member);
+  
+  if (!callerIsAdmin && !REGISTER_CHANNEL_IDS.includes(message.channel.id)) {
+    message.reply(MESSAGE_USE_IN_ALLOWED_CHANNELS);
+    return;
+  }
+
+  // ---- REGISTERHELP ----
+  // place this right after `const cmd = ...` and before channel restriction checks
+  if (cmd === 'registerhelp') {
+    const helpEmbed = new EmbedBuilder()
+      .setTitle('Register Related Commands')
+      .setColor(0x3498db)
+      .setDescription('Short explanations and usage for registration-related commands.')
+      .addFields(
+        { name: '!register <name>',
+          value: 'Register an Albion character to a Discord account (or to a mentioned user). Exact name match required. Example: `!register Tweezys`',
+          inline: false },
+        { name: '!unregister', 
+          value: 'Remove a registration. This will un-link the character name and purge roles from the user.',
+          inline: false },
+        { name: '!registerinfo <game_name>  or  !registerinfo @User', 
+          value: 'Show registration details for a game name or a Discord user.',
+          inline: false },
+        { name: '!kb <game_name>  or  !kb @User', 
+          value: 'Show game stats of registered users.',
+          inline: false },
+        { name: '!register @User <name>  or  !link @User <name>',
+          value: 'Admin-only. Link a game name to a Discord user',
+          inline: false },
+        { name: '!unregister @User',
+          value: 'Admin-only. un-link a game name from a Discord user and purge its roles',
+          inline: false },
+        { name: '!modkb <game_name>  or  !modkb @User',
+          value: 'Admin-only. Show game stats of any albion player.',
+          inline: false }
+      )
+
+    await message.reply({ embeds: [helpEmbed] });
+    return;
+  }
+
+
+  // ---- UNREGISTER ----
+  if (cmd === 'unregister') {
+  // supports: !unregister or !unregister @User
+    const mention = message.mentions.users.first();
+    const targetId = mention ? mention.id : message.author.id;
+
+    if (mention && !callerIsAdmin) {
+      return message.reply('You need admin permission to unregister other users.');
+    }
+    
+    if(!mention && raw.trim() !== '!unregister') {
+      return message.reply('Usage: `!unregister` or `!unregister @User`');
+    }
+
+    const existing = findByDiscordId(targetId);
+    if (!existing) {
+      message.reply('No registration found for that user.');
+      return;
+    }
+
+
+    // unique id to tie collector to this prompt
+    const uid = `${targetId}-${Date.now()}`;
+
+
+
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`confirm-unregister-${uid}`)
+        .setLabel('Confirm Unregister')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`cancel-unregister-${uid}`)
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    // show the same message text you'd like but include the roles warning
+    const selfUnregister = targetId === message.author.id;
+    const prompt = await message.reply({
+      content: `Are you sure you want to unregister **${existing.game_name}** from ${selfUnregister ? 'your' : `<@${targetId}>'s`} account? This will also purge all of ${selfUnregister ? 'your' : 'their'} roles!`,
+      components: [confirmRow]
+    });
+
+    // Collector: allow either the command invoker or an admin to confirm
+    // replace existing collector + handlers with this (minimal change)
+    const collector = prompt.createMessageComponentCollector({
+      filter: i => i.user.id === message.author.id || isAdminOrMod(i.member),
+      time: 30_000,
+      max: 1
+    });
+
+    let acted = false;
+    collector.on('collect', async interaction => {
+      console.log('interaction', uid, interaction.customId);
+      
+      // ensure this button belongs to this prompt
+      if (!interaction.customId.endsWith(uid)) {
+        await interaction.reply({ content: 'This confirmation is not for you.', ephemeral: true }).catch(() => {});
+        return;
+      }
+
+      // Use deferUpdate() to acknowledge the interaction quickly and avoid "already acknowledged" errors.
+      // Then edit the original prompt message (prompt.edit(...)) to remove buttons and show result.
+      if (interaction.customId.startsWith('confirm-unregister-')) {
+        acted = true;
+        await interaction.deferUpdate().catch(() => {});
+
+        // === ORIGINAL UNREGISTER ACTIONS START ===
+        removeRegistrationByDiscordId(targetId);
+
+        try {
+          const guildMember = await message.guild.members.fetch(targetId);
+
+          try {
+            await guildMember.roles.set([], `Unregistered by ${message.author.tag}`);
+          } catch (err) {
+            console.error('Failed to purge roles on unregister:', err);
+          }
+
+          await guildMember.setNickname(null, `Unregistered by ${message.author.tag}`);
+          await prompt.edit({
+            content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account`,
+            components: []
+          }).catch(() => {});
+        } catch (err) {
+          if(err.code === RESTJSONErrorCodes.MissingPermissions){
+            await prompt.edit({
+              content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account, but bot missing permissions to revert the nickname`,
+              components: []
+            }).catch(() => {});
+          } else {
+            console.error(err);
+            await prompt.edit({
+              content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account (something went wrong though)`,
+              components: []
+            }).catch(() => {});
+          }
+        }
+        // === ORIGINAL UNREGISTER ACTIONS END ===
+
+      } else {
+        // Cancel button pressed
+        acted = true;
+        await interaction.deferUpdate().catch(() => {}); // acknowledge
+        await prompt.edit({ content: 'Unregister cancelled.', components: [] }).catch(() => {});
+      }
+    });
+
+    collector.on('end', () => {
+      if (!acted) {
+        // timed out without a button press — keep original data intact
+        prompt.edit({ content: 'Unregister confirmation timed out and no changes were made.', components: [] }).catch(() => {});
+      }
+    });
+    return;
+
+  }
+
+  // ---- REGISTER ----
+  if (cmd === 'register') {
+    // ---- Parse arguments ----
+    const { targetId: targetDiscordId, nameArg, mention } = parseRegisterArgs(message);
+    
+    if (!nameArg) {
+      return message.reply('Usage: `!register Amin` or `!register @User Amin`');
+    }
+
+    // ---- Self vs Registering others ----
+    if (mention && !callerIsAdmin) {
+      return message.reply('You need admin permission to register other users.');
+    }
+
+    // ---- PRE-API CHECKS ----
+
+    // 1) Is the target Discord account already registered?
+    const user_already_registered = checkDiscordRegistration(targetDiscordId);
+
+    const isSelfRegister = targetDiscordId === message.author.id;
+
+    if (user_already_registered) {
+      // Case A: self-registering user (people registering themselves)
+      if (isSelfRegister) {
+        if (user_already_registered.game_name.toLowerCase() === nameArg.toLowerCase()) {
+          return message.reply(`You are already registered as **${user_already_registered.game_name}**.`);
+        }
+        return message.reply(
+          `Your account is already linked to **${user_already_registered.game_name}**. You need to unregister first if you want to change it.`
+        );
+      }
+
+      // Admin must unregister target first (no auto-overwrite)
+      return message.reply(
+        `The user <@${targetDiscordId}> is already registered as **${user_already_registered.game_name}**.`
+      );
+    }
+
+    // 2) Is the requested game name already taken by another Discord user?
+    const duplicate_game_name = checkGameRegistration(nameArg);
+    if (duplicate_game_name) {
+      return message.reply(
+        `${duplicate_game_name.game_name} is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`
+      );
+    }
+
+    // ---- API LOOKUP ----
+    let apiJson;
+    try {
+      apiJson = await searchAlbion(nameArg);
+    } catch (err) {
+      console.error('Albion search error', err);
+      return message.reply('Error contacting Albion API — try again later.');
+    }
+
+    const players = apiJson?.players || [];
+
+    // ---- Exact match ----
+    const player = players.find((p) => p.Name.toLowerCase() === nameArg.toLowerCase());
+    if (player) {
+      const invokerId = (message.author && message.author.id) || (message.user && message.user.id);
+      let extraInfo = '';
+      const result = await addRegistrationToDB(targetDiscordId, player, invokerId);
+      if (result.success) {
+        // after DB insertion succeeded
+        try {
+          const guildMember = await message.guild.members.fetch(targetDiscordId);
+
+          // assign visitor role after successful registration
+          try {
+            await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${message.author.tag}`);
+          } catch (err) {
+            console.error('Failed to assign visitor role to ' + guildMember.user.tag + ':', err);
+          }
+
+          await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${invokerId}`);
+        } catch (err) {
+          console.error('Failed to set nickname to ' + player.Name + ': ', err);
+          extraInfo = `Failed to set nickname: ${err.message}`;
+        }
+
+        await message.reply(`The character name ${player.Name}${player.GuildName ? ` from ${player.GuildName}` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`);
+      } else {
+        await message.reply(`Failed: ${result.error}`);
+      }
+      return;
+    }
+    
+ 
+    return message.reply(`No players found matching "${nameArg}".`);
+    
+  }
+
+  // ---- REGISTERINFO ----
+  if (cmd === 'registerinfo') {
+  // guard: channel/permission
+    const callerIsAdmin = isAdminOrMod(message.member);
+    if (!callerIsAdmin && !REGISTER_CHANNEL_IDS.includes(message.channel.id)) {
+      return message.reply(MESSAGE_USE_IN_ALLOWED_CHANNELS);
+    }
+
+    // parse args
+    const mention = message.mentions.users.first();
+    const parts = message.content.trim().split(/\s+/).slice(1);
+    if (mention) parts.shift(); // remove mention token
+    const nameArg = parts.join(' ').trim();
+
+    // Helper to build embed from a registration DB row
+    const buildEmbedFromRow = (row) => {
+      const embed = new EmbedBuilder()
+        .setTitle('Registration info')
+        .addFields(
+          { name: 'Game name', value: `${row.game_name}`, inline: false },
+          { name: 'Discord', value: `<@${row.discord_id}>`, inline: false },
+          { name: 'Discord ID', value: `${row.discord_id}`, inline: false },
+          { name: 'Added by', value: `<@${row.registered_by}>`, inline: false },
+          { name: 'Registered at', value: `${row.registered_at}`, inline: false }
+        )
+      return embed;
+    };
+
+    // Lookup by mention first
+    if (mention) {
+      const row = findByDiscordId(mention.id);
+      if (!row) {
+        return message.reply(`${mention} is not linked to any game name.`);
+      }
+      const embed = buildEmbedFromRow(row);
+      return message.reply({ embeds: [embed] });
+    }
+
+    // Otherwise lookup by game name (case-insensitive)
+    if (!nameArg) {
+      return message.reply('Usage: `!registerinfo @discorduser` or `!registerinfo game_name`.');
+    }
+
+    const rowByName = findByGameName(nameArg);
+    if (!rowByName) {
+      return message.reply(`The game name **${nameArg}** is not linked to any Discord account in this server.`);
+    }
+
+    const embed = buildEmbedFromRow(rowByName);
+    return message.reply({ embeds: [embed] });
+  }
+
+  // ---- LINK (mods/admins only): !link @user game_name ----
+  if (cmd === 'link') {
+
+    // Only mods/admins can use this command
+    if (!isAdminOrMod(message.member)) {
+      return message.reply('You need mod or admin permission to use this command.');
+    }
+    
+    const mention = message.mentions.users.first();
+    if (!mention) {
+      return message.reply('Usage: `!link @user game_name` (you must mention a user).');
+    }
+
+    // Extract the game name (remove the mention token)
+    const parts = message.content.trim().split(/\s+/).slice(1);
+    parts.shift(); // remove the mention
+    const nameArg = parts.join(' ').trim();
+    if (!nameArg) {
+      return message.reply('Usage: `!link @user game_name` (missing game name).');
+    }
+
+    const targetId = mention.id;
+    // 1) Check if the target user is already registered
+    const existingTarget = findByDiscordId(targetId);
+    if (existingTarget) {
+      return message.reply(
+        `<@${targetId}> is already registered as **${existingTarget.game_name}**. Use \`!unregister @user\` first if you want to change it.`
+      );
+    }
+
+    // 2) Check if the game name is already registered by someone else
+    const duplicate = findByGameName(nameArg);
+    if (duplicate) {
+      return message.reply(
+        `The character name **${nameArg}** is already registered to <@${duplicate.discord_id}>. If this is incorrect, unregister the other account first.`
+      );
+    }
+
+    // 3) Verify game name exists on Albion API (case-insensitive exact match)
+    let apiJson;
+    try {
+      apiJson = await searchAlbion(nameArg);
+    } catch (err) {
+      console.error('Albion search error (link):', err);
+      return message.reply('Error contacting Albion API — try again later.');
+    }
+
+    const players = apiJson?.players || [];
+    if (!players.length) {
+      return message.reply(`No players found matching "${nameArg}".`);
+    }
+
+    const player = players.find((p) => p.Name.toLowerCase() === nameArg.toLowerCase());
+    if (!player) {
+      return message.reply(
+        `No exact match found for "${nameArg}". Please double-check the spelling or use the full exact game name.`
+      );
+    }
+
+    // link code
+    // 4) Insert into DB and set nickname
+    // new
+    const result = await addRegistrationToDB(targetId, player, message.author.id);
+    let extraInfo = '';
+    if (result.success) {
+      // after DB insertion succeeded
+      try {
+        const guildMember = await message.guild.members.fetch(targetId);
+
+        // assign visitor role after successful registration
+        try {
+          await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${message.author.tag}`);
+        } catch (err) {
+          console.error('Failed to assign visitor role to ' + guildMember.user.tag + ':', err);
+        }
+          
+        await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${message.author.id}`);
+      } catch (err) {
+        console.error('Failed to set nickname to ' + player.Name + ': ', err);
+        extraInfo = `Failed to set nickname: ${err.message}`;
+      }
+
+      await message.reply(`The character name ${player.Name}${player.GuildName ? ` from ${player.GuildName}` : ''} has been registered and linked to the account. ${extraInfo ? `(${extraInfo})` : ''}`);
+
+    } else {
+      await message.reply(`Failed: ${result.error}`);
+    }
+    
+  }
+
+  // ---- KB: !kb @discorduser ----
+  if (cmd === 'kb' || cmd === 'modkb') {
+
+    if(cmd === 'modkb' && !isAdminOrMod(message.member)){
+      return message.reply('You do not have permission to use this command.');
+    }
+
+    // accept either: !kb @discorduser  OR  !kb game_name
+    const mention = message.mentions.users.first();
+    const parts = message.content.trim().split(/\s+/).slice(1);
+    if (mention) parts.shift(); // remove mention token
+    const nameArg = parts.join(' ').trim();
+
+    if (!mention && !nameArg) {
+      return message.reply('Usage: `!kb @discorduser` or `!kb game_name` (game name must be registered).');
+    }
+
+    // Determine lookup: by mention OR by registered game name
+    let row;
+    if (mention) {
+      row = findByDiscordId(mention.id);
+      if (!row) {
+        return message.reply(`${mention} is not linked to any game name.`);
+      }
+    } else {
+      // lookup by game name only if it's registered
+      row = findByGameName(nameArg);
+      if (!row && cmd !== 'modkb') {
+        return message.reply(`The game name **${nameArg}** is not linked to any Discord account in this server.`);
+      }
+    }
+
+    // show immediate feedback so user knows bot is working
+    // const replyMsg = await message.channel.send('Thinking, please wait…');
+    await message.channel.sendTyping();
+
+    const is_modkb_fallback = !row && cmd === 'modkb';
+
+
+
+
+    // if(is_modkb_fallback){
+    //   return await message.reply({ content: `we think of this`, embeds: [] });
+    // }
+    
+    let gameId, gameName;
+
+    if(row){
+      gameId = row.game_id,
+      gameName = row.game_name;
+    }
+
+    // Fetch player data from Albion API by game_id
+    let apiRes;
+    const url = is_modkb_fallback 
+      ? `https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=${encodeURIComponent(nameArg)}` 
+      : `https://gameinfo-ams.albiononline.com/api/gameinfo/players/${encodeURIComponent(gameId)}`;
+
+    try {
+      const res = await fetch(url);
+      if (res.status === 404) {
+        return await message.reply({ content: `Player not found (invalid game id for **${gameName}**).`, embeds: [] });
+      }
+      if (!res.ok) {
+        console.error('KB: Albion API returned', res.status);
+        return await message.reply({ content: 'Error contacting Albion API — try again later.', embeds: [] });
+      }
+
+      apiRes = is_modkb_fallback 
+        ? (await res.json()).players.find(e => e.Name.toLowerCase() === nameArg.toLowerCase()) 
+        : await res.json();
+
+      if(is_modkb_fallback && !apiRes){
+        return await message.reply({ content: `Player not found (invalid game name for **${nameArg}**)`, embeds: [] });
+      }
+
+      if(is_modkb_fallback){
+        gameId = apiRes.Id;
+        gameName = apiRes.Name;
+      }
+
+
+    } catch (err) {
+      console.error('KB: fetch error', err);
+      return await message.reply({ content: 'Error contacting Albion API — try again later.', embeds: [] });
+    }
+
+
+    // Map values safely, with fallbacks
+    const guildName = apiRes.GuildName ? `[${apiRes.GuildName}](${`https://albiononline.com/killboard/guild/${apiRes.GuildId}`})` : '—';
+    const allianceName = apiRes.AllianceName ? `[${apiRes.AllianceName}](${`https://albiononline.com/killboard/alliance/${apiRes.AllianceId}`})` : '—';
+    const killFame = typeof apiRes.KillFame === 'number' ? apiRes.KillFame : 0;
+    const deathFame = typeof apiRes.DeathFame === 'number' ? apiRes.DeathFame : 0;
+    const fameRatio = typeof apiRes.FameRatio === 'number' ? apiRes.FameRatio : 0;
+    const pveFame = apiRes.LifetimeStatistics?.PvE?.Total ?? 0;
+
+    // Format numbers with thousands separators
+    const fmt = (n) => Number(n).toLocaleString('en-US');
+
+    // Build embed
+    const embed = new EmbedBuilder()
+      .setTitle('Player info');
+
+    // Profiles (left side) - inline true so it appears left
+    const profilesValue = [
+      `[MurderLedger](https://murderledger-europe.albiononline2d.com/players/${gameName}/ledger)`,
+      `[Albion killboard](https://albiononline.com/killboard/player/${gameId})`,
+      `[AlbionBB](https://europe.albionbb.com/players/${gameName})`,
+      `[AOTracker](https://aotracker.gg/europe/players/${gameName})`,
+    ].join('\n');
+
+    // build a display for the "User" field: ping when lookup used a mention, otherwise show the tag (no ping)
+
+    embed.addFields(
+      { name: 'User', value: row ? `<@${row.discord_id}>` : '`N/A`', inline: true },
+      { name: 'Game name', value: gameName, inline: true },
+      { name: '', value: '', inline: false }, // for organizing data
+      {
+        name: 'Stats',
+        value:
+        `**Guild**: ${guildName}\n` +
+        `**Alliance**: ${allianceName}\n` +
+        `**Kill Fame**: ${fmt(killFame)}\n` +
+        `**Death Fame**: ${fmt(deathFame)}\n` +
+        `**Ratio**: ${fameRatio}\n` +
+        `**PvE Fame**: ${fmt(pveFame)}`,
+        inline: true
+      },
+      { name: 'Profiles', value: profilesValue, inline: true }
+    );
+
+    // Send public embed
+    await message.reply({ content: null, embeds: [embed] });
+    return;
+  }
+
+});
+
+// run on member leave -> delete their registration immediately
+client.on('guildMemberRemove', async (member) => {
+  try {
+    const row = findByDiscordId(member.id);
+    if (!row) return; // nothing to do
+
+    // remove registration from DB
+    removeRegistrationByDiscordId(member.id);
+
+  } catch (err) {
+    console.error('Error handling guildMemberRemove cleanup:', err);
+  }
+});
+
+
 
 client.login(process.env.BOT_TOKEN);

@@ -7,6 +7,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName('weapons')
     .setDescription('Shows basic Albion clap weapons guide')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
 
   new ContextMenuCommandBuilder()
@@ -39,6 +40,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName('roles')
     .setDescription('Shows the zvz roles basics guide')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON()
 
 ];
