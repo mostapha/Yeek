@@ -1480,11 +1480,15 @@ client.on('messageCreate', async (message) => {
 
           await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${invokerId}`);
         } catch (err) {
-          console.error('Failed to set nickname to ' + player.Name + ': ', err);
-          extraInfo = `Failed to set nickname: ${err.message}`;
+          if(err.code === RESTJSONErrorCodes.MissingPermissions){
+            extraInfo = `Failed to set nickname: ${err.message}`;
+          } else {
+            extraInfo = `Something went wrong though, check logs!`;
+            console.error('Failed to set nickname to ' + player.Name + ': ', err);
+          }
         }
 
-        await message.reply(`The character name ${player.Name}${player.GuildName ? ` from ${player.GuildName}` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`);
+        await message.reply(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`);
       } else {
         await message.reply(`Failed: ${result.error}`);
       }
