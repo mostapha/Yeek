@@ -1763,7 +1763,7 @@ client.on('messageCreate', async (message) => {
         `**Kill Fame**: ${fmt(killFame)}\n` +
         `**Death Fame**: ${fmt(deathFame)}\n` +
         `**Ratio**: ${fameRatio}\n` +
-        `**PvE Fame**: ${fmt(pveFame)}`,
+        (pveFame !== 0 ? `**PvE Fame**: ${fmt(pveFame)}` : ''),
         inline: true
       },
       { name: 'Profiles', value: profilesValue, inline: true }
