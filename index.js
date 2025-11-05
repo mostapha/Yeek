@@ -1404,21 +1404,45 @@ client.on('messageCreate', async (message) => {
   }
 
   // ---- REGISTER ----
+
   if (cmd === 'register') {
     // ---- Parse arguments ----
-    const { targetId: targetDiscordId, nameArg, mention } = parseRegisterArgs(message);
+    const { targetId: targetDiscordId, nameArg, mention } = parseRegisterArgs(message),
+          HOW_TO_REGISTER_TEXT = 'Please use `!register + your game name` to register.\nFor example: `!register gamer123` if your game name is `gamer123`';
     
     if (!nameArg) {
-      return message.reply('Usage: `!register Amin` or `!register @User Amin`');
+      // return message.reply('Usage: `!register Amin` or `!register @User Amin`');
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription(HOW_TO_REGISTER_TEXT)
+        ]
+      });
     }
 
     // ---- Self vs Registering others ----
     if (mention && !callerIsAdmin) {
-      return message.reply('You need admin permission to register other users.');
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription('You need admin permission to register other users.\n\nPlease use `!register + your game name` to register.\nFor example: `!register gamer123` if your game name is `gamer123`')
+        ]
+      });
     }
 
     if (nameArg.length > 16 || /[^A-Za-z0-9]/.test(nameArg)) {
-      return message.reply(`"\`${nameArg}\`" is not a valid character name. Use the command like this: \`!register gamer123\``);
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription(HOW_TO_REGISTER_TEXT)
+        ]
+      });
     }
 
     // ---- PRE-API CHECKS ----
@@ -1432,25 +1456,58 @@ client.on('messageCreate', async (message) => {
       // Case A: self-registering user (people registering themselves)
       if (isSelfRegister) {
         if (user_already_registered.game_name.toLowerCase() === nameArg.toLowerCase()) {
-          return message.reply(`You are already registered as **${user_already_registered.game_name}**.`);
+          return message.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor('#E74C3C')
+                .setTitle('Register error')
+                .setDescription(`You are already registered as **${user_already_registered.game_name}**.`)
+            ]
+          });
         }
-        return message.reply(
-          `Your account is already linked to **${user_already_registered.game_name}**. You need to unregister first if you want to change it.`
-        );
+        return message.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#E74C3C')
+              .setTitle('Register error')
+              .setDescription(`Your account is already linked to **${user_already_registered.game_name}**. You need to unregister first if you want to change it.`)
+          ]
+        });
       }
 
       // Admin must unregister target first (no auto-overwrite)
-      return message.reply(
-        `The user <@${targetDiscordId}> is already registered as **${user_already_registered.game_name}**.`
-      );
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription(`The user <@${targetDiscordId}> is already registered as **${user_already_registered.game_name}**.`)
+        ]
+      });
     }
 
     // 2) Is the requested game name already taken by another Discord user?
     const duplicate_game_name = checkGameRegistration(nameArg);
     if (duplicate_game_name) {
-      return message.reply(
-        `${duplicate_game_name.game_name} is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`
-      );
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription(`${duplicate_game_name.game_name} is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`)
+        ]
+      });
+    }
+
+    if((nameArg.toLowerCase() === 'start')){
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription(`"\`${nameArg}\`" is not your character name.\n\nPlease use \`!register + your game name\` to register.\nFor example: \`!register gamer123\` if your game name is \`gamer123\``)
+        ]
+      });
     }
 
     // ---- API LOOKUP ----
@@ -1459,7 +1516,14 @@ client.on('messageCreate', async (message) => {
       apiJson = await searchAlbion(nameArg);
     } catch (err) {
       console.error('Albion search error', err);
-      return message.reply('Error contacting Albion API — try again later.');
+      return message.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#E74C3C')
+            .setTitle('Register error')
+            .setDescription('Error contacting Albion API — try again later.')
+        ]
+      });
     }
 
     const players = apiJson?.players || [];
@@ -1492,18 +1556,35 @@ client.on('messageCreate', async (message) => {
           }
         }
 
-        await message.reply(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`);
+        await message.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2ECC71')
+              .setTitle('Register success')
+              .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
+          ]
+        });
       } else {
-        await message.reply(`Failed: ${result.error}`);
+        await message.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#E74C3C')
+              .setTitle('Register error')
+              .setDescription(`Failed: ${result.error}`)
+          ]
+        });
       }
       return;
     }
 
-    if((nameArg.toLowerCase() === 'start')){
-      return message.reply(`"\`${nameArg}\`" is not your character name. Use the command like this: \`!register gamer123\``);
-    }
-
-    return message.reply(`No players found matching "\`${nameArg}\`".`);
+    return message.reply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setTitle('Register error')
+          .setDescription(`No players found matching "\`${nameArg}\`".`)
+      ]
+    });
 
   }
 
