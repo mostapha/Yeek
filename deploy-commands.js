@@ -22,6 +22,12 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
     .toJSON(),
 
+  new ContextMenuCommandBuilder()
+    .setName('Internal Note')
+    .setType(ApplicationCommandType.User)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+
   new SlashCommandBuilder()
     .setName('bandit')
     .setDescription('Calculate next bandit time window')

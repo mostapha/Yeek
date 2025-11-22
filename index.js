@@ -42,9 +42,41 @@ db.prepare(`
   );
 `).run();
 
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS internal_notes (
+    discord_id TEXT PRIMARY KEY,
+    note TEXT,
+    updated_at TEXT
+  );
+`).run();
+
 // ---------- DB helpers ----------
 
 // applyRegistration inserts/updates DB
+
+// internal_notes helpers
+function getInternNote(discordId) {
+  const row = db.prepare('SELECT note FROM internal_notes WHERE discord_id = ?').get(discordId);
+  return row ? row.note : '';
+}
+
+function upsertInternNote(discordId, note) {
+  const now = new Date().toISOString();
+  if (!note || note.trim() === '') {
+    db.prepare('DELETE FROM internal_notes WHERE discord_id = ?').run(discordId);
+    return { action: 'deleted' };
+  }
+  const exists = db.prepare('SELECT 1 FROM internal_notes WHERE discord_id = ?').get(discordId);
+  if (exists) {
+    db.prepare('UPDATE internal_notes SET note = ?, updated_at = ? WHERE discord_id = ?').run(note, now, discordId);
+    return { action: 'updated' };
+  } else {
+    db.prepare('INSERT INTO internal_notes (discord_id, note, updated_at) VALUES (?, ?, ?)').run(discordId, note, now);
+    return { action: 'created' };
+  }
+}
+
+
 async function addRegistrationToDB(targetDiscordId, player, registeredById) {
   // DB operations:
   try {
@@ -879,6 +911,33 @@ I made this based on my own experience and what I know about the weapons. There 
       modal.addComponents(row);
       return interaction.showModal(modal);
 
+    } else if (interaction.commandName === 'Internal Note') {
+
+      // Optional: restrict who can open the modal. Example: only members with a role ID
+      // const member = interaction.member;
+      // if (!member.roles.cache.has('STAFF_ROLE_ID')) return interaction.reply({ content: 'You do not have permission.', ephemeral: true });
+
+      const targetUser = interaction.targetUser;
+      const existingNote = getInternNote(targetUser.id) || '';
+
+      const modal = new ModalBuilder()
+        .setCustomId(`internal_notes_modal:${targetUser.id}`)
+        .setTitle(`Intern Note — ${targetUser.username}`);
+
+      const input = new TextInputBuilder()
+        .setCustomId('internal_note_input')
+        .setLabel('Note (clear to remove)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Write a short note about this intern')
+        .setRequired(false);
+
+      if (existingNote) input.setValue(existingNote);
+
+      const row = new ActionRowBuilder().addComponents(input);
+      modal.addComponents(row);
+
+      await interaction.showModal(modal);
+
     }
   } else if (interaction.isButton()) {
 
@@ -1048,7 +1107,7 @@ I made this based on my own experience and what I know about the weapons. There 
       const FALLBACK_CHANNEL_ID = '1322532853178695730';
 
       // Confirm to the submitter (ephemeral)
-      await interaction.reply({ content: 'Your input was sent.', ephemeral: true });
+      await interaction.reply({ content: 'Your input was sent.', flags: 64 });
 
       // Try to DM the recipient
       try {
@@ -1074,7 +1133,23 @@ I made this based on my own experience and what I know about the weapons. There 
       return;
     }
 
-  
+    if (interaction.customId && interaction.customId.startsWith('internal_notes_modal:')) {
+      await interaction.deferReply({ flags: 64 });
+
+      const targetId = interaction.customId.split(':')[1];
+      const note = interaction.fields.getTextInputValue('internal_note_input')?.trim() || '';
+
+      const result = upsertInternNote(targetId, note);
+
+      if (result.action === 'deleted') {
+        await interaction.editReply({ content: 'Note cleared and removed.' });
+      } else if (result.action === 'updated') {
+        await interaction.editReply({ content: 'Note updated.' });
+      } else {
+        await interaction.editReply({ content: 'Note created.' });
+      }
+
+    }
 
     if (!interaction.customId.startsWith('renameModal:')) return;
 
@@ -1342,7 +1417,7 @@ client.on('messageCreate', async (message) => {
       
       // ensure this button belongs to this prompt
       if (!interaction.customId.endsWith(uid)) {
-        await interaction.reply({ content: 'This confirmation is not for you.', ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: 'This confirmation is not for you.', flags: 64 }).catch(() => {});
         return;
       }
 

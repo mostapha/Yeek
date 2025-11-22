@@ -2,9 +2,9 @@
 Your job as Great Arcane is to stop enemies and peel for us. Stay somewhere in front or sides, always watching the enemy zerg. When they try to engage on us, stop them with your E.  
 ## Spells  
 ### Arcane Protection (Q2)  
-> You use it to give people shields.  
+> Use it to give people shields; Shield your caller when he's trying to engage so he doesn't get popped.
 ### Motivating Cleanse (W2)  
-> You use it to cleanse people if they have crowd controls (stun, silence, roots...) on them.  
+> Use it to cleanse people if they have crowd controls (stun, silence, roots...) on them; Cleanse the enemy engages (perma, stuns...); Don't use it for getting movement speed.
 ### Time Freeze (E)  
 > You use it to freeze enemies, preventing them from moving or doing anything for 3 seconds. They also can't take damage during this time.  
 ## Tips  
