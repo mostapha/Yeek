@@ -47,7 +47,35 @@ const commands = [
     .setName('roles')
     .setDescription('Shows the zvz roles basics guide')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON()
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('comp_create')
+    .setDescription('Create a party comp')
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('comp_assign')
+    .setDescription('Organizer: assign or unassign a user to a slot (use inside the comp thread)')
+    .addIntegerOption(option =>
+      option.setName('slot')
+        .setDescription('Role number')
+        .setRequired(true)
+    )
+    .addUserOption(option =>
+      option.setName('user')
+        .setDescription('User to assign (mention)')
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('comp_edit')
+    .setDescription('Organizer: edit your comp (use inside the comp thread)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
+    .toJSON(),
 
 ];
 

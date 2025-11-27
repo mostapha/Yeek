@@ -16,6 +16,7 @@ config();
 // Config placeholders - replace with real IDs or load from env
 const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',') // allowed channels for non mods/admins
 const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
+const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
 
 // Albion API base
 const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
@@ -49,6 +50,102 @@ db.prepare(`
     updated_at TEXT
   );
 `).run();
+
+// Ensure comps table exists
+db.exec(`
+CREATE TABLE IF NOT EXISTS comps (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  message_id TEXT,
+  thread_id TEXT,
+  organizer_id TEXT NOT NULL,
+  slots_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+`);
+
+
+// HELPERS FOR COMP START
+// Helper: create comp
+function createCompRecord({ guildId, channelId, organizerId, slotsArray }) {
+  const stmt = db.prepare(`
+    INSERT INTO comps (guild_id, channel_id, organizer_id, slots_json, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const info = stmt.run(guildId, channelId, organizerId, JSON.stringify(slotsArray), Date.now());
+  const compId = info.lastInsertRowid;
+  return compId;
+}
+
+// Helper: get comp by id
+function getCompById(id) {
+  const row = db.prepare('SELECT * FROM comps WHERE id = ?').get(id);
+  if (!row) return null;
+  return {
+    ...row,
+    slots: JSON.parse(row.slots_json)
+  };
+}
+
+// Helper: get comp by thread id
+function getCompByThreadId(threadId) {
+  const row = db.prepare('SELECT * FROM comps WHERE thread_id = ?').get(threadId);
+  if (!row) return null;
+  return {
+    ...row,
+    slots: JSON.parse(row.slots_json)
+  };
+}
+
+// Helper: update comp (partial updates supported)
+function updateCompRow(id, fields = {}) {
+  const allowed = ['message_id', 'thread_id', 'slots_json'];
+  const parts = [];
+  const values = [];
+  for (const k of Object.keys(fields)) {
+    if (!allowed.includes(k)) continue;
+    parts.push(`${k} = ?`);
+    values.push(fields[k]);
+  }
+  if (parts.length === 0) return;
+  values.push(id);
+  const sql = `UPDATE comps SET ${parts.join(', ')} WHERE id = ?`;
+  db.prepare(sql).run(...values);
+}
+
+// Helper: update slots array
+function updateCompSlots(id, slotsArray) {
+  updateCompRow(id, { slots_json: JSON.stringify(slotsArray) });
+}
+
+// Build the plain-text comp message body
+function buildCompMessageBody(comp) {
+  // comp.slots is array of { roleName, playerId (or null), playerName (or null), weapon (or null) }
+  const lines = comp.slots.map((slot, idx) => {
+    const index = idx + 1;
+    if (slot.playerId) {
+      return `${index}. ${slot.roleName} <@${slot.playerId}>`;
+    } else {
+      return `${index}. ${slot.roleName}`;
+    }
+  });
+  return lines.join('\n');
+}
+
+
+// Simple in-memory lock per comp id to avoid race conditions
+const compLocks = new Map();
+function lockComp(compId) {
+  if (compLocks.get(compId)) return false; // locked already
+  compLocks.set(compId, true);
+  return true;
+}
+function unlockComp(compId) {
+  compLocks.delete(compId);
+}
+
+// HELPERS FOR COMP END
 
 // ---------- DB helpers ----------
 
@@ -816,7 +913,6 @@ I made this based on my own experience and what I know about the weapons. There 
         break;
       }
       case 'bandit': {
-
         const timeStr = interaction.options.getString('time');
         const show = interaction.options.getBoolean('show') || false;
 
@@ -858,6 +954,168 @@ I made this based on my own experience and what I know about the weapons. There 
 
         await interaction.reply(dt);
         break;
+      }
+      case 'comp_create':{
+        // only allow if callers
+        if (!interaction.member.roles.cache.some(role => CALLERS_ROLES_IDS.includes(role.id))) {
+          return await interaction.reply({
+            content: 'You are not allowed to use this command.',
+            flags: 64
+          });
+        }
+
+        // Only allow organizer or mods — keeper: anyone can create comps? We'll allow any user to create; organizer will be the invoker.
+        const modal = new ModalBuilder()
+          .setCustomId(`comp_create_modal-${interaction.user.id}-${Date.now()}`)
+          .setTitle('Create comp');
+
+        const slotsInput = new TextInputBuilder()
+          .setCustomId('comp_slots')
+          .setLabel('Slots (one role name per line)')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setPlaceholder('Caller\nTank\nTank\nSupport\nDPS\nDPS\nHeal');
+
+        const threadNameInput = new TextInputBuilder()
+          .setCustomId('comp_thread_name')
+          .setLabel('Thread name (optional)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
+          .setPlaceholder('e.g. RZ cap');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(slotsInput),
+          new ActionRowBuilder().addComponents(threadNameInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+      case 'comp_assign':{
+        // This command must be used inside a comp thread
+        if (!interaction.channel || !interaction.channel.isThread()) {
+          await interaction.reply({ content: 'This command must be used inside the comp thread.', flags: 64 });
+          return;
+        }
+
+        // find comp by thread id
+        const comp = getCompByThreadId(interaction.channel.id);
+        if (!comp) {
+          await interaction.reply({ content: 'This thread is not linked to a comp.', flags: 64 });
+          return;
+        }
+
+        // parse options (slot and user) — comp_id option removed
+        const slotNum = interaction.options.getInteger('slot', true);
+        const user = interaction.options.getUser('user', true);
+
+        // permission check: organizer or mod
+        const isOrganizer = interaction.user.id === String(comp.organizer_id);
+        if (!isOrganizer) {
+          await interaction.reply({ content: 'Only the organizer can assign users.', flags: 64 });
+          return;
+        }
+
+        // slot bounds
+        if (slotNum < 1 || slotNum > comp.slots.length) {
+          await interaction.reply({ content: 'Invalid slot number.', flags: 64 });
+          return;
+        }
+
+        const compId = comp.id;
+
+        // lock
+        if (!lockComp(compId)) {
+          await interaction.reply({ content: 'Please try again in a moment (busy).', flags: 64 });
+          return;
+        }
+        try {
+          // refresh comp
+          const fresh = getCompById(compId);
+          const slots = fresh.slots;
+
+          // if slot is already taken by same user -> unassign
+          const targetSlot = slots[slotNum - 1];
+          if (targetSlot.playerId === String(user.id)) {
+            await interaction.reply({ content: 'User already signed to this slot.', flags: 64 });
+            return;
+          }
+
+          // if taken by someone else -> overwrite (organizer/mod allowed)
+          if (targetSlot.playerId && targetSlot.playerId !== String(user.id)) {
+            await interaction.reply({ content: `Slot ${slotNum} already taken.`, flags: 64 });
+            return;
+          }
+
+          // if empty -> assign
+          if (!targetSlot.playerId) {
+            // ensure user not already assigned in another slot
+            const already = slots.find(s => s.playerId === String(user.id));
+            if (already) {
+              await interaction.reply({ content: `${user.tag} is already assigned to another slot in this comp.`, flags: 64 });
+              return;
+            }
+            targetSlot.playerId = String(user.id);
+            // fetch guild member to get display name / nickname if available
+            const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+            targetSlot.playerName = member?.displayName || member?.nickname || user.tag;
+            updateCompSlots(compId, slots);
+            try {
+              const channel = await client.channels.fetch(fresh.channel_id);
+              const msg = await channel.messages.fetch(fresh.message_id);
+              const body = buildCompMessageBody({ ...fresh, slots });
+              await msg.edit(body);
+            } catch (e) { /* ignore edit errors */ }
+            await interaction.reply({ content: `Assigned ${user.tag} to slot ${slotNum}.`, flags: 64 });
+            return;
+          }
+        } finally {
+          unlockComp(compId);
+        }
+
+        break;
+      }
+      case 'comp_edit':{
+        // Must be used inside a thread
+        if (!interaction.channel || !interaction.channel.isThread()) {
+          await interaction.reply({ content: 'This command must be used inside the comp thread.', flags: 64 });
+          return;
+        }
+
+        // find comp by thread id
+        const comp = getCompByThreadId(interaction.channel.id);
+        if (!comp) {
+          await interaction.reply({ content: 'This thread is not linked to a comp.', flags: 64 });
+          return;
+        }
+
+        // Only organizer can edit
+        if (String(comp.organizer_id) !== String(interaction.user.id)) {
+          await interaction.reply({ content: 'Only the organizer can edit this comp.', flags: 64 });
+          return;
+        }
+
+        // Build modal prefilled with current values
+        const modal = new ModalBuilder()
+          .setCustomId(`edit_comp_modal-${comp.id}-${interaction.user.id}-${Date.now()}`)
+          .setTitle(`Edit comp #${comp.id}`);
+
+
+
+        const slotsText = comp.slots.map(s => s.roleName).join('\n');
+        const slotsInput = new TextInputBuilder()
+          .setCustomId('comp_slots')
+          .setLabel('Slots (one role name per line)')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setValue(slotsText);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(slotsInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
       }
     }
 
@@ -915,7 +1173,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
       // Optional: restrict who can open the modal. Example: only members with a role ID
       // const member = interaction.member;
-      // if (!member.roles.cache.has('STAFF_ROLE_ID')) return interaction.reply({ content: 'You do not have permission.', ephemeral: true });
+      // if (!member.roles.cache.has('STAFF_ROLE_ID')) return interaction.reply({ content: 'You do not have permission.', flags: 64 });
 
       const targetUser = interaction.targetUser;
       const existingNote = getInternNote(targetUser.id) || '';
@@ -1151,6 +1409,213 @@ I made this based on my own experience and what I know about the weapons. There 
 
     }
 
+    // handle comp_create modal submit
+    if (interaction.customId && interaction.customId.startsWith('comp_create_modal-')) {
+      // Acknowledge the interaction immediately to avoid "Unknown interaction" while doing slow work.
+      // We use ephemeral so only the command user sees the ack.
+      await interaction.deferReply({ flags: 64 });
+
+      try {
+        const slotsText = interaction.fields.getTextInputValue('comp_slots').trim();
+        const slotLines = slotsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+        if (slotLines.length === 0) {
+          // We already deferred, so edit the deferred reply.
+          await interaction.editReply({ content: 'No slots provided.' });
+          return;
+        }
+
+        if (slotLines.length > 40) return interaction.editReply({ content: 'Too many slots. Max 40.' });
+
+        // initial slots array
+        const slotsArray = slotLines.map(roleName => ({
+          roleName,
+          playerId: null,
+          playerName: null,
+        }));
+
+        // create DB row first to get id (assumed synchronous or fast)
+        const compId = createCompRecord({
+          guildId: interaction.guildId,
+          channelId: interaction.channelId,
+          organizerId: String(interaction.user.id),
+          slotsArray
+        });
+
+        // read optional thread name from modal (trim and limit to 100 chars)
+        const threadNameRaw = (interaction.fields.getTextInputValue('comp_thread_name') || '').trim();
+        const threadNameDefault = `comp-${compId}`;
+        const threadNameFinal = threadNameRaw ? threadNameRaw.slice(0, 100) : threadNameDefault;
+
+        // Build message body
+        const comp = getCompById(compId);
+        const body = buildCompMessageBody(comp);
+
+        // post message and create thread
+        try {
+          const channel = await client.channels.fetch(comp.channel_id);
+
+          const posted = await channel.send(body);
+
+          // start a thread
+          const thread = await posted.startThread({ name: threadNameFinal, autoArchiveDuration: 1440 });
+
+          // update DB with message_id/thread_id
+          updateCompRow(compId, { message_id: posted.id, thread_id: thread.id });
+
+          // send a sign-up guide embed as the first message inside the thread
+          const guideEmbed = new EmbedBuilder()
+            .setDescription(
+              `### Comp posted by:
+<@${comp.organizer_id}>
+### How to sign up:
+- Type the role number to take the role
+- Use negative role number to unsign (example: -2 to unsign from role 2)
+- The organizer can use \`/comp_assign\` to sign anyone
+- The organizer can use -N to unsign anyone`
+            )
+            .setColor(0x3498db);
+
+          try {
+            await thread.send({ embeds: [guideEmbed] });
+          } catch (err) {
+            console.error('Failed to send signup guide embed in thread:', err);
+            // not fatal for the interaction response, continue
+          }
+
+          // We deferred earlier, so edit the reply to show success.
+          await interaction.editReply({ content: `Comp created: #${compId}` });
+        } catch (err) {
+          console.error('Failed to post comp message/thread:', err);
+          // Edit the deferred reply to communicate the failure
+          await interaction.editReply({ content: 'Failed to post comp message. Try again later.' });
+        }
+
+        return;
+      } catch (err) {
+        console.error('Unhandled error in comp creation flow:', err);
+        // if we deferred, edit; otherwise try to reply
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content: 'An error occurred while creating the comp.' });
+        } else {
+          await interaction.reply({ content: 'An error occurred while creating the comp.', flags: 64 });
+        }
+        return;
+      }
+    }
+
+
+    // ---- Handle edit_comp modal submit ----
+    if (interaction.customId && interaction.customId.startsWith('edit_comp_modal-')) {
+
+      // customId format: edit_comp_modal-<compId>-<userId>-<ts>
+      const parts = interaction.customId.split('-');
+      const compId = parseInt(parts[1], 10);
+      const invokerId = parts[2];
+
+      // sanity
+      if (!compId) {
+        await interaction.reply({ content: 'Invalid comp id in modal.', flags: 64 });
+        return;
+      }
+
+      // permission check again
+      const comp = getCompById(compId);
+      if (!comp) {
+        await interaction.reply({ content: 'Comp not found.', flags: 64 });
+        return;
+      }
+      if (String(comp.organizer_id) !== String(interaction.user.id)) {
+        await interaction.reply({ content: 'Only the organizer can edit this comp.', flags: 64 });
+        return;
+      }
+
+      // Defer early so we avoid "Unknown interaction" during the edit work
+      await interaction.deferReply({ flags: 64 });
+
+
+      // parse new values
+      const slotsText = interaction.fields.getTextInputValue('comp_slots').trim();
+      const slotLines = slotsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+      if (slotLines.length === 0) {
+        await interaction.editReply({ content: 'No slots provided.' });
+        return;
+      }
+      if (slotLines.length > 40) return interaction.editReply({ content: 'Too many slots. Max 40.' });
+
+      // prepare new empty slots array
+      const newSlots = slotLines.map(roleName => ({
+        roleName,
+        playerId: null,
+        playerName: null
+      }));
+
+      // remap signups by role name (preserve original signup order by scanning old slots in order)
+      const oldSlots = comp.slots || [];
+      const signups = [];
+      for (let i = 0; i < oldSlots.length; i++) {
+        const s = oldSlots[i];
+        if (s.playerId) {
+          signups.push({ playerId: s.playerId, playerName: s.playerName || `<@${s.playerId}>`, oldRole: s.roleName });
+        }
+      }
+
+      const unassigned = [];
+      // for each signup in order, try to find first matching role in newSlots
+      for (const su of signups) {
+        let placed = false;
+        for (let j = 0; j < newSlots.length; j++) {
+          if (newSlots[j].roleName === su.oldRole && !newSlots[j].playerId) {
+            newSlots[j].playerId = su.playerId;
+            newSlots[j].playerName = su.playerName;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          // keep playerId so we can mention them in the thread
+          unassigned.push({ playerId: su.playerId, userName: su.playerName, oldRole: su.oldRole });
+        }
+      }
+
+      // Save new title and slots (DB)
+      updateCompRow(compId, {});
+      updateCompSlots(compId, newSlots);
+
+      // Update the comp message body and append Unassigned if any
+      const refreshed = getCompById(compId);
+      refreshed.slots = newSlots;
+
+      const newBody = buildCompMessageBody(refreshed);
+      try {
+        const channel = await client.channels.fetch(refreshed.channel_id);
+        const postedMsg = await channel.messages.fetch(refreshed.message_id);
+        await postedMsg.edit(newBody);
+
+        // If we have unassigned users after edit, post a thread message to notify organizer & users
+        if (unassigned.length > 0 && refreshed.thread_id) {
+          try {
+            const thread = await client.channels.fetch(refreshed.thread_id);
+            const lines = unassigned.map(u => `- ${u.playerId ? `<@${u.playerId}>` : u.userName} (was: ${u.oldRole})`);
+            await thread.send({
+              content: `Some signups could not be preserved after the edit and were unassigned:\n${lines.join('\n')}`
+            });
+          } catch (err) {
+            console.error('Failed to post unassigned notice in thread:', err);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to update comp message after edit:', e);
+      }
+
+      // reply to organizer
+      await interaction.editReply({ content: `Comp #${compId} updated. ${unassigned.length ? `${unassigned.length} user(s) unassigned.` : 'All signups preserved.'}` });
+      return;
+    }
+
+
+
     if (!interaction.customId.startsWith('renameModal:')) return;
 
     const userId = interaction.customId.split(':')[1];
@@ -1305,7 +1770,6 @@ const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link',
 client.on('messageCreate', async (message) => {
 
   if (message.author?.bot) return;
-
   const raw = message.content;
   if (!raw || raw.charCodeAt(0) !== 33) return; // '!' === 33
   if (raw.length < 3) return;
@@ -1929,6 +2393,139 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+});
+
+client.on('messageCreate', async (message) => {
+  try {
+    if (message.author.bot) return;
+
+    // only process thread messages
+    if (!message.channel || !message.channel.isThread()) return;
+
+    const threadId = message.channel.id;
+    const comp = getCompByThreadId(threadId);
+    if (!comp) return; // not a comp thread
+
+    // // only open comps accept signups
+    // if (comp.status !== 'open') return;
+
+    const text = message.content.trim();
+    // accept patterns: "3" or "3 w2" or "3:2" where first group is slot index
+    
+    const m = text.match(/^\s*(-?\d+)\s*$/);
+    if (!m) return; // not a signup/unsignup message
+
+    const rawNum = m[1];
+    const isUnassign = rawNum.startsWith('-');
+    const idx = Math.abs(parseInt(rawNum, 10));
+    if (isNaN(idx) || idx < 1 || idx > comp.slots.length) {
+      await message.react('❌').catch(() => {});
+      await message.reply('Invalid slot number.').catch(() => {});
+      return;
+    }
+
+    // lock the comp
+    if (!lockComp(comp.id)) {
+      await message.react('❌').catch(() => {});
+      await message.reply('Try again in a moment.').catch(() => {});
+      return;
+    }
+
+    try {
+      // refresh comp inside lock
+      const fresh = getCompById(comp.id);
+      const slots = fresh.slots;
+      const target = slots[idx - 1];
+
+      if (isUnassign) {
+        // UNASSIGN flow
+        // if slot is empty
+        if (!target.playerId) {
+          await message.react('❌').catch(() => {});
+          await message.reply('Slot is already empty.').catch(() => {});
+          return;
+        }
+
+        const senderId = String(message.author.id);
+        const organizerId = String(fresh.organizer_id);
+
+        // allowed to unassign if sender is the slot owner OR sender is the organizer
+        const senderIsOwner = target.playerId === senderId;
+        const senderIsOrganizer = senderId === organizerId;
+
+        if (!senderIsOwner && !senderIsOrganizer) {
+          // not allowed
+          await message.react('❌').catch(() => {});
+          await message.reply('You are not signed in that slot.').catch(() => {});
+          return;
+        }
+
+        // perform unassign
+        target.playerId = null;
+        target.playerName = null;
+        updateCompSlots(fresh.id, slots);
+
+        // update the comp message
+        try {
+          const channel = await client.channels.fetch(fresh.channel_id);
+          const msg = await channel.messages.fetch(fresh.message_id);
+
+          const body = buildCompMessageBody({ ...fresh, slots });
+          await msg.edit(body);
+
+        } catch (e) {
+          console.error('Failed to update comp message after unassign:', e);
+        }
+
+        await message.react('✅').catch(() => {});
+        return;
+      }
+
+      // ---- SIGN-UP flow (existing behaviour) ----
+      // check if user already assigned somewhere in this comp
+      const alreadyAssigned = slots.find(s => s.playerId === String(message.author.id));
+      if (alreadyAssigned) {
+        console.log('alreadyAssigned', alreadyAssigned);
+        
+        await message.react('❌').catch(() => {});
+        await message.reply(`You are already signed as \`${alreadyAssigned.roleName}\``).catch(() => {});
+        return;
+      }
+
+      if (target.playerId) {
+        // taken: react ❌ and reply (do NOT update message)
+        await message.react('❌').catch(() => {});
+        await message.reply('This role is already taken.').catch(() => {});
+        return;
+      }
+
+      // normal assign
+      target.playerId = String(message.author.id);
+      // use message.member displayName (exists for guild messages), fallback to tag
+      target.playerName = message.member?.displayName || message.member?.nickname || message.author.tag;
+  
+      updateCompSlots(fresh.id, slots);
+
+      // update the comp message to show assignment
+      try {
+        const channel = await client.channels.fetch(fresh.channel_id);
+        const msg = await channel.messages.fetch(fresh.message_id);
+        const body = buildCompMessageBody({ ...fresh, slots });
+
+        await msg.edit(body);
+      } catch (e) {
+        console.error('Failed to update comp message after signup:', e);
+      }
+
+      await message.react('✅').catch(() => {});
+
+    } finally {
+      unlockComp(comp.id);
+    }
+
+  } catch (err) {
+    console.error('Signup handler error:', err);
+  }
 });
 
 // run on member leave -> delete their registration immediately
