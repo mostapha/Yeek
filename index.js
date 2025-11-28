@@ -144,6 +144,199 @@ function lockComp(compId) {
 function unlockComp(compId) {
   compLocks.delete(compId);
 }
+const signupQueues = new Map(); // queues per comp: Map<compId, Array<{message, retries}>
+
+// CORE: run the actual signup/unassign logic using the fetched message object.
+// Returns { ok: true } on handled signup, { ok: false, reason: '...' } on handled failure.
+async function runSignupLogic(item, message, compId) {
+  try {
+    const text = (item.content || '').trim();
+    const m = text.match(/^\s*(-?\d+)\s*$/);
+    if (!m) {
+      // not a signup token
+      await message.react('❌').catch(() => {});
+      return { ok: false, reason: 'not_signup' };
+    }
+
+    const rawNum = m[1];
+    const isUnassign = rawNum.startsWith('-');
+    const idx = Math.abs(parseInt(rawNum, 10));
+
+    const fresh = getCompById(compId);
+    if (!fresh) {
+      await message.react('❌').catch(() => {});
+      return { ok: false, reason: 'no_comp' };
+    }
+    const slots = fresh.slots;
+    if (isNaN(idx) || idx < 1 || idx > slots.length) {
+      await message.react('❌').catch(() => {});
+      await message.reply('Invalid slot number.').catch(() => {});
+      return { ok: false, reason: 'bad_index' };
+    }
+    const target = slots[idx - 1];
+
+    if (isUnassign) {
+      if (!target.playerId) {
+        await message.react('❌').catch(() => {});
+        await message.reply('Slot is already empty.').catch(() => {});
+        return { ok: false, reason: 'slot_empty' };
+      }
+      const senderId = String(item.authorId);
+      const organizerId = String(fresh.organizer_id);
+      const senderIsOwner = target.playerId === senderId;
+      const senderIsOrganizer = senderId === organizerId;
+      if (!senderIsOwner && !senderIsOrganizer) {
+        await message.react('❌').catch(() => {});
+        await message.reply('You are not signed in that slot.').catch(() => {});
+        return { ok: false, reason: 'not_allowed' };
+      }
+
+      target.playerId = null;
+      target.playerName = null;
+      updateCompSlots(fresh.id, slots);
+      try {
+        const ch = await client.channels.fetch(fresh.channel_id);
+        const posted = await ch.messages.fetch(fresh.message_id);
+        await posted.edit(buildCompMessageBody({ ...fresh, slots }));
+      } catch (e) {
+        if (e.code === 10008) {  // Unknown message
+          await message.reply('The comp message was deleted, maybe this is an old thread');
+        } else {
+          console.error('Failed to update comp message after unassign:', e);
+          await message.reply('Failed to update comp message after unassign');
+        }
+      }
+      await message.react('✅').catch(() => {});
+      return { ok: true };
+    }
+
+    // SIGNUP flow
+    const alreadyAssigned = slots.find(s => s.playerId === String(item.authorId));
+    if (alreadyAssigned) {
+      await message.react('❌').catch(() => {});
+      await message.reply(`You are already signed as \`${alreadyAssigned.roleName}\``).catch(() => {});
+      return { ok: false, reason: 'already_signed' };
+    }
+    if (target.playerId) {
+      await message.react('❌').catch(() => {});
+      await message.reply('This role is already taken.').catch(() => {});
+      return { ok: false, reason: 'taken' };
+    }
+
+    target.playerId = String(item.authorId);
+    target.playerName = item.displayName;
+    updateCompSlots(fresh.id, slots);
+    try {
+      const ch = await client.channels.fetch(fresh.channel_id);
+      const posted = await ch.messages.fetch(fresh.message_id);
+      await posted.edit(buildCompMessageBody({ ...fresh, slots }));
+    } catch (e) {
+      if (e.code === 10008) {  // Unknown message
+        await message.reply('The comp message was deleted, maybe this is an old thread');
+      } else {
+        console.error('Failed to update comp message after signup:', e);
+        await message.reply('Failed to update comp message after signup');
+      }
+    }
+    await message.react('✅').catch(() => {});
+    return { ok: true };
+  } catch (err) {
+    console.error('runSignupLogic error:', err);
+    try { await message.react('❌'); } catch {}
+    return { ok: false, reason: 'error' };
+  } finally {
+    // remove queued indicator if present (best-effort)
+    try {
+      const react = message.reactions.cache.get('⏳');
+      if (react) await react.users.remove(client.user.id).catch(() => {});
+    } catch (_) {}
+  }
+}
+
+// Helper: caller already holds lock — run logic then unlock and trigger queue processing if needed
+async function processItemWithLock(item, message, compId) {
+  try {
+    // we already have the lock when calling this
+    await runSignupLogic(item, message, compId);
+  } finally {
+    unlockComp(compId);
+    // kick the queue processor (in case items were queued while we worked)
+    setImmediate(() => processSignupQueue(compId));
+  }
+}
+
+// Update enqueue: unchanged (stores minimal fields)
+function enqueueSignup(compId, message) {
+  const item = {
+    channelId: message.channel.id,
+    messageId: message.id,
+    authorId: message.author.id,
+    content: message.content,
+    displayName: message.member?.displayName || message.author.tag,
+    retries: 0
+  };
+  if (!signupQueues.has(compId)) signupQueues.set(compId, { queue: [], processing: false });
+  signupQueues.get(compId).queue.push(item);
+}
+
+// Updated processSignupQueue: when it acquires lock it calls runSignupLogic (which removes ⏳)
+// ...existing processSignupQueue code...
+async function processSignupQueue(compId) {
+  const qObj = signupQueues.get(compId);
+  if (!qObj || qObj.processing) return;
+  qObj.processing = true;
+
+  try {
+    while (qObj.queue.length > 0) {
+      const item = qObj.queue.shift();
+      const maxRetries = 3;
+
+      let channel = null;
+      let message = null;
+      try {
+        channel = await client.channels.fetch(item.channelId);
+        if (channel && channel.isTextBased()) {
+          message = await channel.messages.fetch(item.messageId).catch(() => null);
+        }
+      } catch {
+        channel = null;
+        message = null;
+      }
+
+      if (!message) {
+        continue;
+      }
+
+      // Try acquire lock
+      if (!lockComp(compId)) {
+        if (item.retries < maxRetries) {
+          item.retries++;
+          qObj.queue.unshift(item);
+          await new Promise(r => setTimeout(r, 500 * item.retries));
+          continue;
+        } else {
+          try {
+            const react = message.reactions.cache.get('⏳');
+            if (react) await react.users.remove(client.user.id).catch(() => {});
+          } catch (_) {}
+          await message.react('😵').catch(() => {});
+          await message.reply('Try again in a moment.').catch(() => {});
+          continue;
+        }
+      }
+
+      // we have the lock
+      try {
+        await runSignupLogic(item, message, compId);
+      } finally {
+        unlockComp(compId);
+      }
+    }
+  } finally {
+    qObj.processing = false;
+    if (qObj.queue.length === 0) signupQueues.delete(compId);
+  }
+}
 
 // HELPERS FOR COMP END
 
@@ -2398,130 +2591,41 @@ client.on('messageCreate', async (message) => {
 client.on('messageCreate', async (message) => {
   try {
     if (message.author.bot) return;
-
-    // only process thread messages
     if (!message.channel || !message.channel.isThread()) return;
 
     const threadId = message.channel.id;
     const comp = getCompByThreadId(threadId);
-    if (!comp) return; // not a comp thread
-
-    // // only open comps accept signups
-    // if (comp.status !== 'open') return;
+    if (!comp) return;
 
     const text = message.content.trim();
-    // accept patterns: "3" or "3 w2" or "3:2" where first group is slot index
-    
     const m = text.match(/^\s*(-?\d+)\s*$/);
-    if (!m) return; // not a signup/unsignup message
+    if (!m) return;
 
-    const rawNum = m[1];
-    const isUnassign = rawNum.startsWith('-');
-    const idx = Math.abs(parseInt(rawNum, 10));
-    if (isNaN(idx) || idx < 1 || idx > comp.slots.length) {
-      await message.react('❌').catch(() => {});
-      await message.reply('Invalid slot number.').catch(() => {});
-      return;
+    // Build minimal queue item
+    const item = {
+      channelId: message.channel.id,
+      messageId: message.id,
+      authorId: message.author.id,
+      content: message.content,
+      displayName: message.member?.displayName || message.author.tag,
+      retries: 0
+    };
+
+    const compId = comp.id;
+
+    // Try fast-path: acquire lock and process immediately (avoid enqueue)
+    if (lockComp(compId)) {
+      // don't react ⏳ — we'll respond with ✅/❌ directly
+      return processItemWithLock(item, message, compId).catch(err => {
+        console.error('processItemWithLock error:', err);
+      });
     }
 
-    // lock the comp
-    if (!lockComp(comp.id)) {
-      await message.react('❌').catch(() => {});
-      await message.reply('Try again in a moment.').catch(() => {});
-      return;
-    }
-
-    try {
-      // refresh comp inside lock
-      const fresh = getCompById(comp.id);
-      const slots = fresh.slots;
-      const target = slots[idx - 1];
-
-      if (isUnassign) {
-        // UNASSIGN flow
-        // if slot is empty
-        if (!target.playerId) {
-          await message.react('❌').catch(() => {});
-          await message.reply('Slot is already empty.').catch(() => {});
-          return;
-        }
-
-        const senderId = String(message.author.id);
-        const organizerId = String(fresh.organizer_id);
-
-        // allowed to unassign if sender is the slot owner OR sender is the organizer
-        const senderIsOwner = target.playerId === senderId;
-        const senderIsOrganizer = senderId === organizerId;
-
-        if (!senderIsOwner && !senderIsOrganizer) {
-          // not allowed
-          await message.react('❌').catch(() => {});
-          await message.reply('You are not signed in that slot.').catch(() => {});
-          return;
-        }
-
-        // perform unassign
-        target.playerId = null;
-        target.playerName = null;
-        updateCompSlots(fresh.id, slots);
-
-        // update the comp message
-        try {
-          const channel = await client.channels.fetch(fresh.channel_id);
-          const msg = await channel.messages.fetch(fresh.message_id);
-
-          const body = buildCompMessageBody({ ...fresh, slots });
-          await msg.edit(body);
-
-        } catch (e) {
-          console.error('Failed to update comp message after unassign:', e);
-        }
-
-        await message.react('✅').catch(() => {});
-        return;
-      }
-
-      // ---- SIGN-UP flow (existing behaviour) ----
-      // check if user already assigned somewhere in this comp
-      const alreadyAssigned = slots.find(s => s.playerId === String(message.author.id));
-      if (alreadyAssigned) {
-        console.log('alreadyAssigned', alreadyAssigned);
-        
-        await message.react('❌').catch(() => {});
-        await message.reply(`You are already signed as \`${alreadyAssigned.roleName}\``).catch(() => {});
-        return;
-      }
-
-      if (target.playerId) {
-        // taken: react ❌ and reply (do NOT update message)
-        await message.react('❌').catch(() => {});
-        await message.reply('This role is already taken.').catch(() => {});
-        return;
-      }
-
-      // normal assign
-      target.playerId = String(message.author.id);
-      // use message.member displayName (exists for guild messages), fallback to tag
-      target.playerName = message.member?.displayName || message.member?.nickname || message.author.tag;
-  
-      updateCompSlots(fresh.id, slots);
-
-      // update the comp message to show assignment
-      try {
-        const channel = await client.channels.fetch(fresh.channel_id);
-        const msg = await channel.messages.fetch(fresh.message_id);
-        const body = buildCompMessageBody({ ...fresh, slots });
-
-        await msg.edit(body);
-      } catch (e) {
-        console.error('Failed to update comp message after signup:', e);
-      }
-
-      await message.react('✅').catch(() => {});
-
-    } finally {
-      unlockComp(comp.id);
-    }
+    // Busy -> enqueue and show queued indicator
+    enqueueSignup(compId, message);
+    try { await message.react('⏳'); } catch (e) {}
+    // ensure queue processor will run
+    processSignupQueue(compId);
 
   } catch (err) {
     console.error('Signup handler error:', err);
