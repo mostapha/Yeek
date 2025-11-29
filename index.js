@@ -1,6 +1,6 @@
 import { 
   Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
-  StringSelectMenuBuilder, RESTJSONErrorCodes
+  StringSelectMenuBuilder, RESTJSONErrorCodes, Partials
 } from 'discord.js';
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
@@ -61,21 +61,41 @@ CREATE TABLE IF NOT EXISTS comps (
   thread_id TEXT,
   organizer_id TEXT NOT NULL,
   slots_json TEXT NOT NULL,
+  raw_input TEXT,
   created_at INTEGER NOT NULL
 );
 `);
 
+// After database initialization
+function cleanupOldComps() {
+  try {
+    const fifteenDaysAgo = Date.now() - (15 * 24 * 60 * 60 * 1000);
+    const result = db.prepare('DELETE FROM comps WHERE created_at < ?').run(fifteenDaysAgo);
+    if (result.changes > 0) {
+      console.log(`Cleaned up ${result.changes} old comp(s) (older than 15 days)`);
+    }
+  } catch (err) {
+    console.error('Failed to cleanup old comps:', err);
+  }
+}
+
 
 // HELPERS FOR COMP START
 // Helper: create comp
-function createCompRecord({ guildId, channelId, organizerId, slotsArray }) {
+function createCompRecord({ guildId, channelId, organizerId, slotsArray, rawInput }) {
   const stmt = db.prepare(`
-    INSERT INTO comps (guild_id, channel_id, organizer_id, slots_json, created_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO comps (guild_id, channel_id, organizer_id, slots_json, raw_input, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
-  const info = stmt.run(guildId, channelId, organizerId, JSON.stringify(slotsArray), Date.now());
-  const compId = info.lastInsertRowid;
-  return compId;
+  const info = stmt.run(
+    guildId, 
+    channelId, 
+    organizerId, 
+    JSON.stringify(slotsArray), // only roles (for backwards compatibility)
+    rawInput,                    // full text with comments
+    Date.now()
+  );
+  return info.lastInsertRowid;
 }
 
 // Helper: get comp by id
@@ -84,7 +104,8 @@ function getCompById(id) {
   if (!row) return null;
   return {
     ...row,
-    slots: JSON.parse(row.slots_json)
+    slots: JSON.parse(row.slots_json),
+    raw_input: row.raw_input || null // might be null for old comps
   };
 }
 
@@ -94,13 +115,13 @@ function getCompByThreadId(threadId) {
   if (!row) return null;
   return {
     ...row,
-    slots: JSON.parse(row.slots_json)
+    slots: JSON.parse(row.slots_json),
+    raw_input: row.raw_input || null
   };
 }
-
 // Helper: update comp (partial updates supported)
 function updateCompRow(id, fields = {}) {
-  const allowed = ['message_id', 'thread_id', 'slots_json'];
+  const allowed = ['message_id', 'thread_id', 'slots_json', 'raw_input']; // add raw_input here
   const parts = [];
   const values = [];
   for (const k of Object.keys(fields)) {
@@ -121,46 +142,73 @@ function updateCompSlots(id, slotsArray) {
 
 // Build the plain-text comp message body
 function buildCompMessageBody(comp) {
-  // comp.slots is array of { roleName, playerId (or null), playerName (or null), weapon (or null) }
-  const lines = comp.slots.map((slot, idx) => {
-    const index = idx + 1;
-    if (slot.playerId) {
-      return `${index}. ${slot.roleName} <@${slot.playerId}>`;
+  // If no raw_input (old comps), fall back to old behavior
+  if (!comp.raw_input) {
+    return comp.slots.map((slot, idx) => {
+      const index = idx + 1;
+      if (slot.playerId) {
+        return `${index}. ${slot.roleName} <@${slot.playerId}>`;
+      } else {
+        return `${index}. ${slot.roleName}`;
+      }
+    }).join('\n');
+  }
+
+  // New behavior: parse raw_input and inject signups
+  const lines = [];
+  const allLines = comp.raw_input.split(/\r?\n/).map(s => s.trim());
+  let roleIndex = 0;
+  
+  allLines.forEach((line) => {
+    if (!line) return; // skip empty
+    
+    if (line.startsWith('>')) {
+      // Comment line - add as-is
+      lines.push(line);
+      return;
+    }
+    
+    // Role line - add with number and signup if exists
+    const slot = comp.slots[roleIndex];
+    roleIndex++;
+    
+    if (slot && slot.playerId) {
+      lines.push(`${roleIndex}. ${slot.roleName} <@${slot.playerId}>`);
     } else {
-      return `${index}. ${slot.roleName}`;
+      lines.push(`${roleIndex}. ${slot.roleName}`);
     }
   });
+  
   return lines.join('\n');
 }
 
-
-// Simple in-memory lock per comp id to avoid race conditions
-const compLocks = new Map();
-function lockComp(compId) {
-  if (compLocks.get(compId)) return false; // locked already
-  compLocks.set(compId, true);
-  return true;
+const compQueues = new Map();
+async function runWithCompLock(compId, operation) {
+  let currentPromise = compQueues.get(compId) ?? Promise.resolve();
+  
+  const newPromise = currentPromise
+    .then(operation)
+    .catch(err => {
+      console.error(`Error in comp ${compId} operation:`, err);
+    });
+  
+  compQueues.set(compId, newPromise);
+  
+  newPromise.finally(() => {
+    if (compQueues.get(compId) === newPromise) {
+      compQueues.delete(compId);
+    }
+  });
+  
+  return newPromise;
 }
-function unlockComp(compId) {
-  compLocks.delete(compId);
-}
-const signupQueues = new Map(); // queues per comp: Map<compId, Array<{message, retries}>
 
 // CORE: run the actual signup/unassign logic using the fetched message object.
 // Returns { ok: true } on handled signup, { ok: false, reason: '...' } on handled failure.
-async function runSignupLogic(item, message, compId) {
+async function runSignupLogic(item, message, compId, parsed_data) {
   try {
-    const text = (item.content || '').trim();
-    const m = text.match(/^\s*(-?\d+)\s*$/);
-    if (!m) {
-      // not a signup token
-      await message.react('❌').catch(() => {});
-      return { ok: false, reason: 'not_signup' };
-    }
-
-    const rawNum = m[1];
-    const isUnassign = rawNum.startsWith('-');
-    const idx = Math.abs(parseInt(rawNum, 10));
+    const isUnassign = parsed_data.isNegative;
+    const idx = parsed_data.roleNumber;
 
     const fresh = getCompById(compId);
     if (!fresh) {
@@ -241,102 +289,12 @@ async function runSignupLogic(item, message, compId) {
     await message.react('✅').catch(() => {});
     return { ok: true };
   } catch (err) {
-    console.error('runSignupLogic error:', err);
+    console.error('_runSignupLogic error:', err);
     try { await message.react('❌'); } catch {}
     return { ok: false, reason: 'error' };
-  } finally {
-    // remove queued indicator if present (best-effort)
-    try {
-      const react = message.reactions.cache.get('⏳');
-      if (react) await react.users.remove(client.user.id).catch(() => {});
-    } catch (_) {}
   }
 }
 
-// Helper: caller already holds lock — run logic then unlock and trigger queue processing if needed
-async function processItemWithLock(item, message, compId) {
-  try {
-    // we already have the lock when calling this
-    await runSignupLogic(item, message, compId);
-  } finally {
-    unlockComp(compId);
-    // kick the queue processor (in case items were queued while we worked)
-    setImmediate(() => processSignupQueue(compId));
-  }
-}
-
-// Update enqueue: unchanged (stores minimal fields)
-function enqueueSignup(compId, message) {
-  const item = {
-    channelId: message.channel.id,
-    messageId: message.id,
-    authorId: message.author.id,
-    content: message.content,
-    displayName: message.member?.displayName || message.author.tag,
-    retries: 0
-  };
-  if (!signupQueues.has(compId)) signupQueues.set(compId, { queue: [], processing: false });
-  signupQueues.get(compId).queue.push(item);
-}
-
-// Updated processSignupQueue: when it acquires lock it calls runSignupLogic (which removes ⏳)
-// ...existing processSignupQueue code...
-async function processSignupQueue(compId) {
-  const qObj = signupQueues.get(compId);
-  if (!qObj || qObj.processing) return;
-  qObj.processing = true;
-
-  try {
-    while (qObj.queue.length > 0) {
-      const item = qObj.queue.shift();
-      const maxRetries = 3;
-
-      let channel = null;
-      let message = null;
-      try {
-        channel = await client.channels.fetch(item.channelId);
-        if (channel && channel.isTextBased()) {
-          message = await channel.messages.fetch(item.messageId).catch(() => null);
-        }
-      } catch {
-        channel = null;
-        message = null;
-      }
-
-      if (!message) {
-        continue;
-      }
-
-      // Try acquire lock
-      if (!lockComp(compId)) {
-        if (item.retries < maxRetries) {
-          item.retries++;
-          qObj.queue.unshift(item);
-          await new Promise(r => setTimeout(r, 500 * item.retries));
-          continue;
-        } else {
-          try {
-            const react = message.reactions.cache.get('⏳');
-            if (react) await react.users.remove(client.user.id).catch(() => {});
-          } catch (_) {}
-          await message.react('😵').catch(() => {});
-          await message.reply('Try again in a moment.').catch(() => {});
-          continue;
-        }
-      }
-
-      // we have the lock
-      try {
-        await runSignupLogic(item, message, compId);
-      } finally {
-        unlockComp(compId);
-      }
-    }
-  } finally {
-    qObj.processing = false;
-    if (qObj.queue.length === 0) signupQueues.delete(compId);
-  }
-}
 
 // HELPERS FOR COMP END
 
@@ -951,11 +909,17 @@ function buildMessage(node, path) {
 
 
 const client = new Client({
-  intents: [GatewayIntentBits.GuildPresences, GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildScheduledEvents]
+  intents: [GatewayIntentBits.GuildPresences, GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildScheduledEvents],
+  partials: [
+    Partials.Message,   // <-- important to get deleted messages that weren't cached
+    Partials.Channel,   // useful if message's channel wasn't cached
+  ],
 });
 
 client.once(Events.ClientReady, () => {
   console.log(`Bot is ready as ${client.user.tag}`);
+
+  cleanupOldComps();
 });
 
 
@@ -1217,16 +1181,11 @@ I made this based on my own experience and what I know about the weapons. There 
 
         const compId = comp.id;
 
-        // lock
-        if (!lockComp(compId)) {
-          await interaction.reply({ content: 'Please try again in a moment (busy).', flags: 64 });
-          return;
-        }
-        try {
-          // refresh comp
+        await runWithCompLock(compId, async () => {
           const fresh = getCompById(compId);
           const slots = fresh.slots;
-
+         
+          
           // if slot is already taken by same user -> unassign
           const targetSlot = slots[slotNum - 1];
           if (targetSlot.playerId === String(user.id)) {
@@ -1262,9 +1221,8 @@ I made this based on my own experience and what I know about the weapons. There 
             await interaction.reply({ content: `Assigned ${user.tag} to slot ${slotNum}.`, flags: 64 });
             return;
           }
-        } finally {
-          unlockComp(compId);
-        }
+
+        });
 
         break;
       }
@@ -1293,9 +1251,9 @@ I made this based on my own experience and what I know about the weapons. There 
           .setCustomId(`edit_comp_modal-${comp.id}-${interaction.user.id}-${Date.now()}`)
           .setTitle(`Edit comp #${comp.id}`);
 
-
-
-        const slotsText = comp.slots.map(s => s.roleName).join('\n');
+        // Use raw_input if available, otherwise fall back to reconstructing from slots (backwards compatibility)
+        const slotsText = comp.raw_input || comp.slots.map(s => s.roleName).join('\n');
+  
         const slotsInput = new TextInputBuilder()
           .setCustomId('comp_slots')
           .setLabel('Slots (one role name per line)')
@@ -1609,30 +1567,38 @@ I made this based on my own experience and what I know about the weapons. There 
       await interaction.deferReply({ flags: 64 });
 
       try {
+        // Inside comp_create_modal submit:
         const slotsText = interaction.fields.getTextInputValue('comp_slots').trim();
-        const slotLines = slotsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const allLines = slotsText.split(/\r?\n/).map(s => s.trim());
 
-        if (slotLines.length === 0) {
-          // We already deferred, so edit the deferred reply.
+        // Keep existing logic - only roles go into slotsArray
+        const slotsArray = [];
+        allLines.forEach((line) => {
+          if (!line || line.startsWith('>')) return; // skip empty and comments
+          slotsArray.push({
+            roleName: line,
+            playerId: null,
+            playerName: null,
+          });
+        });
+
+        if (slotsArray.length === 0) {
           await interaction.editReply({ content: 'No slots provided.' });
           return;
         }
 
-        if (slotLines.length > 40) return interaction.editReply({ content: 'Too many slots. Max 40.' });
+        if (slotsArray.length > 40) {
+          await interaction.editReply({ content: 'Too many slots. Max 40.' });
+          return;
+        }
 
-        // initial slots array
-        const slotsArray = slotLines.map(roleName => ({
-          roleName,
-          playerId: null,
-          playerName: null,
-        }));
-
-        // create DB row first to get id (assumed synchronous or fast)
+        // Create comp with both arrays
         const compId = createCompRecord({
           guildId: interaction.guildId,
           channelId: interaction.channelId,
           organizerId: String(interaction.user.id),
-          slotsArray
+          slotsArray,      // only roles (existing behavior)
+          rawInput: slotsText // full input with comments
         });
 
         // read optional thread name from modal (trim and limit to 100 chars)
@@ -1726,23 +1692,29 @@ I made this based on my own experience and what I know about the weapons. There 
       // Defer early so we avoid "Unknown interaction" during the edit work
       await interaction.deferReply({ flags: 64 });
 
-
       // parse new values
       const slotsText = interaction.fields.getTextInputValue('comp_slots').trim();
-      const slotLines = slotsText.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const allLines = slotsText.split(/\r?\n/).map(s => s.trim());
 
-      if (slotLines.length === 0) {
+      // Extract only roles (skip comments and empty lines)
+      const newSlots = [];
+      allLines.forEach((line) => {
+        if (!line || line.startsWith('>')) return; // skip empty and comments
+        newSlots.push({
+          roleName: line,
+          playerId: null,
+          playerName: null
+        });
+      });
+
+      if (newSlots.length === 0) {
         await interaction.editReply({ content: 'No slots provided.' });
         return;
       }
-      if (slotLines.length > 40) return interaction.editReply({ content: 'Too many slots. Max 40.' });
-
-      // prepare new empty slots array
-      const newSlots = slotLines.map(roleName => ({
-        roleName,
-        playerId: null,
-        playerName: null
-      }));
+      if (newSlots.length > 40) {
+        await interaction.editReply({ content: 'Too many slots. Max 40.' });
+        return;
+      }
 
       // remap signups by role name (preserve original signup order by scanning old slots in order)
       const oldSlots = comp.slots || [];
@@ -1772,13 +1744,14 @@ I made this based on my own experience and what I know about the weapons. There 
         }
       }
 
-      // Save new title and slots (DB)
-      updateCompRow(compId, {});
-      updateCompSlots(compId, newSlots);
+      // Save new slots AND raw_input using the helper
+      updateCompRow(compId, {
+        slots_json: JSON.stringify(newSlots),
+        raw_input: slotsText
+      });
 
       // Update the comp message body and append Unassigned if any
       const refreshed = getCompById(compId);
-      refreshed.slots = newSlots;
 
       const newBody = buildCompMessageBody(refreshed);
       try {
@@ -2590,45 +2563,74 @@ client.on('messageCreate', async (message) => {
 
 client.on('messageCreate', async (message) => {
   try {
-    if (message.author.bot) return;
-    if (!message.channel || !message.channel.isThread()) return;
 
-    const threadId = message.channel.id;
-    const comp = getCompByThreadId(threadId);
+    // Guard 1: Bot messages (fastest check, common case)
+    if (message.author.bot) return;
+    
+    // Guard 2: Not a thread (avoid fetching if not thread-based)
+    if (!message.channel?.isThread?.()) return;
+
+    // Guard 3: Fast number validation before regex (avoid regex overhead)
+    const text = message.content.trim();
+    const len = text.length;
+    if (len < 1 || len > 3) return; // "-40" = 3 chars, "40" = 2 chars max
+    const firstChar = text.charCodeAt(0);
+    if (firstChar !== 45 && (firstChar < 49 || firstChar > 57)) return; // 45='-', 49-57='1'-'9'
+
+    // Guard 4: Parse and validate number range (1-40, -1 to -40)
+    const isNegative = firstChar === 45;
+    const numStr = isNegative ? text.slice(1) : text;
+    const num = parseInt(numStr, 10);
+    
+    if (isNaN(num) || num < 1 || num > 40) return;
+
+    // Guard 5: Comp lookup (most expensive, do last)
+    const comp = getCompByThreadId(message.channel.id);
     if (!comp) return;
 
-    const text = message.content.trim();
-    const m = text.match(/^\s*(-?\d+)\s*$/);
-    if (!m) return;
+    const compId = comp.id,
+          parsed_data = {
+            roleNumber: num,
+            isNegative: isNegative,
+            content: text,
+          };
+  
 
-    // Build minimal queue item
-    const item = {
-      channelId: message.channel.id,
-      messageId: message.id,
-      authorId: message.author.id,
-      content: message.content,
-      displayName: message.member?.displayName || message.author.tag,
-      retries: 0
-    };
+    await runWithCompLock(compId, async () => {
+      const item = {
+        channelId: message.channel.id,
+        messageId: message.id,
+        authorId: message.author.id,
+        content: text,
+        displayName: message.member?.displayName || message.author.tag
+      };
+      await runSignupLogic(item, message, compId, parsed_data);
+    });
 
-    const compId = comp.id;
 
-    // Try fast-path: acquire lock and process immediately (avoid enqueue)
-    if (lockComp(compId)) {
-      // don't react ⏳ — we'll respond with ✅/❌ directly
-      return processItemWithLock(item, message, compId).catch(err => {
-        console.error('processItemWithLock error:', err);
-      });
-    }
 
-    // Busy -> enqueue and show queued indicator
-    enqueueSignup(compId, message);
-    try { await message.react('⏳'); } catch (e) {}
-    // ensure queue processor will run
-    processSignupQueue(compId);
+    return;
 
   } catch (err) {
     console.error('Signup handler error:', err);
+  }
+});
+
+client.on('messageDelete', (message) => {
+  try {
+    // Only process if it's a valid message with an ID
+    if (!message.id) return;
+
+    // Find comp by message_id
+    const comp = db.prepare('SELECT * FROM comps WHERE message_id = ?').get(message.id);
+    if (!comp) return; // Not a comp message
+
+    // Delete the comp from database
+    db.prepare('DELETE FROM comps WHERE id = ?').run(comp.id);
+    
+    console.log(`Comp #${comp.id} deleted (message ${message.id} was deleted)`);
+  } catch (err) {
+    console.error('Error handling comp message deletion:', err);
   }
 });
 
@@ -2645,6 +2647,8 @@ client.on('guildMemberRemove', async (member) => {
     console.error('Error handling guildMemberRemove cleanup:', err);
   }
 });
+
+
 
 
 
