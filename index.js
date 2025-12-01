@@ -2570,20 +2570,24 @@ client.on('messageCreate', async (message) => {
     // Guard 2: Not a thread (avoid fetching if not thread-based)
     if (!message.channel?.isThread?.()) return;
 
-    // Guard 3: Fast number validation before regex (avoid regex overhead)
+    // Guard 3 & 4 combined: Validate format and parse in one pass
     const text = message.content.trim();
     const len = text.length;
-    if (len < 1 || len > 3) return; // "-40" = 3 chars, "40" = 2 chars max
+    if (len < 1 || len > 3) return;
+
     const firstChar = text.charCodeAt(0);
-    if (firstChar !== 45 && (firstChar < 49 || firstChar > 57)) return; // 45='-', 49-57='1'-'9'
-
-    // Guard 4: Parse and validate number range (1-40, -1 to -40)
     const isNegative = firstChar === 45;
-    const numStr = isNegative ? text.slice(1) : text;
-    const num = parseInt(numStr, 10);
-    
-    if (isNaN(num) || num < 1 || num > 40) return;
+    const startIdx = isNegative ? 1 : 0;
 
+    // Validate all remaining chars are digits while parsing
+    let num = 0;
+    for (let i = startIdx; i < len; i++) {
+      const code = text.charCodeAt(i);
+      if (code < 48 || code > 57) return; // Not a digit
+      num = num * 10 + (code - 48); // Manual parsing
+    }
+
+    if (num < 1 || num > 40) return;
     // Guard 5: Comp lookup (most expensive, do last)
     const comp = getCompByThreadId(message.channel.id);
     if (!comp) return;
