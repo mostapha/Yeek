@@ -28,6 +28,20 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
 
+    
+  new ContextMenuCommandBuilder()
+    .setName('Edit Comp')
+    .setType(ApplicationCommandType.Message)
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
+    .toJSON(),
+
+  new ContextMenuCommandBuilder()
+    .setName('Check Comp')
+    .setType(ApplicationCommandType.Message)
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
+    .toJSON(),
+
+
   new SlashCommandBuilder()
     .setName('bandit')
     .setDescription('Calculate next bandit time window')

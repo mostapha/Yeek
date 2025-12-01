@@ -135,6 +135,31 @@ function updateCompRow(id, fields = {}) {
   db.prepare(sql).run(...values);
 }
 
+// Helper: show edit comp modal
+async function showEditCompModal(interaction, comp) {
+  // Build modal prefilled with current values
+  const modal = new ModalBuilder()
+    .setCustomId(`edit_comp_modal-${comp.id}-${interaction.user.id}-${Date.now()}`)
+    .setTitle(`Edit comp #${comp.id}`);
+
+  // Use raw_input if available, otherwise fall back to reconstructing from slots
+  const slotsText = comp.raw_input || comp.slots.map(s => s.roleName).join('\n');
+
+  const slotsInput = new TextInputBuilder()
+    .setCustomId('comp_slots')
+    .setLabel('Slots (one role name per line)')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true)
+    .setValue(slotsText);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(slotsInput)
+  );
+
+  await interaction.showModal(modal);
+
+}
+
 // Helper: update slots array
 function updateCompSlots(id, slotsArray) {
   updateCompRow(id, { slots_json: JSON.stringify(slotsArray) });
@@ -218,7 +243,7 @@ async function runSignupLogic(item, message, compId, parsed_data) {
     const slots = fresh.slots;
     if (isNaN(idx) || idx < 1 || idx > slots.length) {
       await message.react('❌').catch(() => {});
-      await message.reply('Invalid slot number.').catch(() => {});
+      await message.reply('Invalid role number.').catch(() => {});
       return { ok: false, reason: 'bad_index' };
     }
     const target = slots[idx - 1];
@@ -226,7 +251,7 @@ async function runSignupLogic(item, message, compId, parsed_data) {
     if (isUnassign) {
       if (!target.playerId) {
         await message.react('❌').catch(() => {});
-        await message.reply('Slot is already empty.').catch(() => {});
+        await message.reply('Role is already empty.').catch(() => {});
         return { ok: false, reason: 'slot_empty' };
       }
       const senderId = String(item.authorId);
@@ -235,7 +260,7 @@ async function runSignupLogic(item, message, compId, parsed_data) {
       const senderIsOrganizer = senderId === organizerId;
       if (!senderIsOwner && !senderIsOrganizer) {
         await message.react('❌').catch(() => {});
-        await message.reply('You are not signed in that slot.').catch(() => {});
+        await message.reply('You are not signed in that role.').catch(() => {});
         return { ok: false, reason: 'not_allowed' };
       }
 
@@ -1175,7 +1200,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
         // slot bounds
         if (slotNum < 1 || slotNum > comp.slots.length) {
-          await interaction.reply({ content: 'Invalid slot number.', flags: 64 });
+          await interaction.reply({ content: 'Invalid role number.', flags: 64 });
           return;
         }
 
@@ -1189,13 +1214,13 @@ I made this based on my own experience and what I know about the weapons. There 
           // if slot is already taken by same user -> unassign
           const targetSlot = slots[slotNum - 1];
           if (targetSlot.playerId === String(user.id)) {
-            await interaction.reply({ content: 'User already signed to this slot.', flags: 64 });
+            await interaction.reply({ content: 'User already signed to this role.', flags: 64 });
             return;
           }
 
           // if taken by someone else -> overwrite (organizer/mod allowed)
           if (targetSlot.playerId && targetSlot.playerId !== String(user.id)) {
-            await interaction.reply({ content: `Slot ${slotNum} already taken.`, flags: 64 });
+            await interaction.reply({ content: `Role ${slotNum} already taken.`, flags: 64 });
             return;
           }
 
@@ -1204,7 +1229,7 @@ I made this based on my own experience and what I know about the weapons. There 
             // ensure user not already assigned in another slot
             const already = slots.find(s => s.playerId === String(user.id));
             if (already) {
-              await interaction.reply({ content: `${user.tag} is already assigned to another slot in this comp.`, flags: 64 });
+              await interaction.reply({ content: `${user.tag} is already assigned to another role in this comp.`, flags: 64 });
               return;
             }
             targetSlot.playerId = String(user.id);
@@ -1218,7 +1243,7 @@ I made this based on my own experience and what I know about the weapons. There 
               const body = buildCompMessageBody({ ...fresh, slots });
               await msg.edit(body);
             } catch (e) { /* ignore edit errors */ }
-            await interaction.reply({ content: `Assigned ${user.tag} to slot ${slotNum}.`, flags: 64 });
+            await interaction.reply({ content: `Assigned ${user.tag} to role ${slotNum}.`, flags: 64 });
             return;
           }
 
@@ -1246,26 +1271,8 @@ I made this based on my own experience and what I know about the weapons. There 
           return;
         }
 
-        // Build modal prefilled with current values
-        const modal = new ModalBuilder()
-          .setCustomId(`edit_comp_modal-${comp.id}-${interaction.user.id}-${Date.now()}`)
-          .setTitle(`Edit comp #${comp.id}`);
-
-        // Use raw_input if available, otherwise fall back to reconstructing from slots (backwards compatibility)
-        const slotsText = comp.raw_input || comp.slots.map(s => s.roleName).join('\n');
-  
-        const slotsInput = new TextInputBuilder()
-          .setCustomId('comp_slots')
-          .setLabel('Slots (one role name per line)')
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(true)
-          .setValue(slotsText);
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(slotsInput)
-        );
-
-        await interaction.showModal(modal);
+        // Use shared helper function
+        await showEditCompModal(interaction, comp);
         return;
       }
     }
@@ -1348,6 +1355,95 @@ I made this based on my own experience and what I know about the weapons. There 
       await interaction.showModal(modal);
 
     }
+
+
+  } else if (interaction.isMessageContextMenuCommand()) {
+     
+    if (interaction.commandName === 'Check Comp') {
+    // Only allow if user has caller role
+      if (!interaction.member.roles.cache.some(role => CALLERS_ROLES_IDS.includes(role.id))) {
+        return await interaction.reply({
+          content: 'You are not allowed to use this command.',
+          flags: 64
+        });
+      }
+
+      const targetMessage = interaction.targetMessage;
+    
+      // Try to find comp by message_id
+      const comp = db.prepare('SELECT * FROM comps WHERE message_id = ?').get(targetMessage.id);
+    
+      if (!comp) {
+        return await interaction.reply({
+          content: 'This message is not a comp.',
+          flags: 64
+        });
+      }
+
+      // Show modal with pre-filled comp data
+      const modal = new ModalBuilder()
+        .setCustomId(`comp_check_modal-${interaction.user.id}-${Date.now()}`)
+        .setTitle('Preview the comp');
+
+      const slotsText = comp.raw_input
+
+      const slotsInput = new TextInputBuilder()
+        .setCustomId('comp_slots')
+        .setLabel('Preview only')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true)
+        .setValue(slotsText)
+        .setPlaceholder('Changes will not be saved');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(slotsInput),
+      );
+
+      await interaction.showModal(modal);
+      return;
+    }
+
+    if (interaction.commandName === 'Edit Comp') {
+      // Only allow if user has caller role
+      if (!interaction.member.roles.cache.some(role => CALLERS_ROLES_IDS.includes(role.id))) {
+        return await interaction.reply({
+          content: 'You are not allowed to use this command.',
+          flags: 64
+        });
+      }
+
+      const targetMessage = interaction.targetMessage;
+    
+      // Find comp by message_id
+      const comp = db.prepare('SELECT * FROM comps WHERE message_id = ?').get(targetMessage.id);
+    
+      if (!comp) {
+        return await interaction.reply({
+          content: 'This message is not a comp.',
+          flags: 64
+        });
+      }
+
+      // Parse slots_json to get full comp object
+      const fullComp = {
+        ...comp,
+        slots: JSON.parse(comp.slots_json),
+        raw_input: comp.raw_input || null
+      };
+
+      // Only organizer can edit
+      if (String(fullComp.organizer_id) !== String(interaction.user.id)) {
+        return await interaction.reply({
+          content: 'Only the organizer can edit this comp.',
+          flags: 64
+        });
+      }
+
+      // Use shared helper function
+      await showEditCompModal(interaction, fullComp);
+      return;
+    }
+
   } else if (interaction.isButton()) {
 
     // weapons guide buttons contains "::" so we find them here
@@ -1670,8 +1766,6 @@ I made this based on my own experience and what I know about the weapons. There 
       // customId format: edit_comp_modal-<compId>-<userId>-<ts>
       const parts = interaction.customId.split('-');
       const compId = parseInt(parts[1], 10);
-      const invokerId = parts[2];
-
       // sanity
       if (!compId) {
         await interaction.reply({ content: 'Invalid comp id in modal.', flags: 64 });
@@ -1780,7 +1874,12 @@ I made this based on my own experience and what I know about the weapons. There 
       return;
     }
 
-
+    if (interaction.customId && interaction.customId.startsWith('comp_check_modal-')) {
+      await interaction.reply({
+        content: 'You closed the modal.',
+        ephemeral: true
+      });
+    }
 
     if (!interaction.customId.startsWith('renameModal:')) return;
 
@@ -2587,7 +2686,11 @@ client.on('messageCreate', async (message) => {
       num = num * 10 + (code - 48); // Manual parsing
     }
 
-    if (num < 1 || num > 40) return;
+    if (num < 1 || num > 40) {
+      await message.react('❌').catch(() => {});
+      await message.reply('Invalid role number.').catch(() => {});
+      return;
+    }
     // Guard 5: Comp lookup (most expensive, do last)
     const comp = getCompByThreadId(message.channel.id);
     if (!comp) return;
