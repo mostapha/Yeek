@@ -168,18 +168,6 @@ function updateCompSlots(id, slotsArray) {
 
 // Build the plain-text comp message body
 function buildCompMessageBody(comp) {
-  // If no raw_input (old comps), fall back to old behavior
-  if (!comp.raw_input) {
-    return comp.slots.map((slot, idx) => {
-      const index = idx + 1;
-      if (slot.playerId) {
-        return `${index}. ${slot.roleName} <@${slot.playerId}>`;
-      } else {
-        return `${index}. ${slot.roleName}`;
-      }
-    }).join('\n');
-  }
-
   // New behavior: parse raw_input and inject signups
   const lines = [];
   const allLines = comp.raw_input.split(/\r?\n/).map(s => s.trim());
@@ -190,7 +178,8 @@ function buildCompMessageBody(comp) {
     
     if (line.startsWith('>')) {
       // Comment line - add as-is
-      lines.push(line);
+      console.log(line);
+      lines.push(line.slice(1).trimStart());
       return;
     }
     
@@ -204,6 +193,9 @@ function buildCompMessageBody(comp) {
       lines.push(`${roleIndex}. ${slot.roleName}`);
     }
   });
+
+  console.log(lines);
+  
   
   return lines.join('\n');
 }
@@ -1686,8 +1678,8 @@ I made this based on my own experience and what I know about the weapons. There 
           return;
         }
 
-        if (slotsArray.length > 40) {
-          await interaction.editReply({ content: 'Too many slots. Max 40.' });
+        if (slotsArray.length > 60) {
+          await interaction.editReply({ content: 'Too many slots. Max 60.' });
           return;
         }
 
@@ -1810,8 +1802,8 @@ I made this based on my own experience and what I know about the weapons. There 
         await interaction.editReply({ content: 'No slots provided.' });
         return;
       }
-      if (newSlots.length > 40) {
-        await interaction.editReply({ content: 'Too many slots. Max 40.' });
+      if (newSlots.length > 60) {
+        await interaction.editReply({ content: 'Too many slots. Max 60.' });
         return;
       }
 
@@ -2701,7 +2693,7 @@ client.on('messageCreate', async (message) => {
       num = num * 10 + (code - 48); // Manual parsing
     }
 
-    if (num < 1 || num > 40) {
+    if (num < 1 || num > 60) {
       await message.react('❌').catch(() => {});
       await message.reply('Invalid role number.').catch(() => {});
       return;
