@@ -18,6 +18,7 @@ const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',')
 const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
 const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
 const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID;
+const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID;
 
 // Albion API base
 const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
@@ -174,12 +175,14 @@ function buildCompMessageBody(comp) {
   let roleIndex = 0;
   
   allLines.forEach((line) => {
-    if (!line) return; // skip empty
+    if (!line) {
+      lines.push(''); // empty line
+      return
+    }
     
     if (line.startsWith('>')) {
-      // Comment line - add as-is
-      console.log(line);
-      lines.push(line.slice(1).trimStart());
+      // Comment line - replace @highlander
+      lines.push(line.slice(1).trimStart().replace(/@highlander/gi, `<@&${MEMBER_ROLE_ID}>`));
       return;
     }
     
@@ -193,9 +196,6 @@ function buildCompMessageBody(comp) {
       lines.push(`${roleIndex}. ${slot.roleName}`);
     }
   });
-
-  console.log(lines);
-  
   
   return lines.join('\n');
 }
