@@ -17,6 +17,7 @@ config();
 const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',') // allowed channels for non mods/admins
 const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
 const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
+const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID;
 
 // Albion API base
 const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
@@ -1266,7 +1267,8 @@ I made this based on my own experience and what I know about the weapons. There 
         }
 
         // Only organizer can edit
-        if (String(comp.organizer_id) !== String(interaction.user.id)) {
+        const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
+        if (String(comp.organizer_id) !== String(interaction.user.id) && !isSuperAdmin) {
           await interaction.reply({ content: 'Only the organizer can edit this comp.', flags: 64 });
           return;
         }
@@ -1432,7 +1434,8 @@ I made this based on my own experience and what I know about the weapons. There 
       };
 
       // Only organizer can edit
-      if (String(fullComp.organizer_id) !== String(interaction.user.id)) {
+      const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
+      if (String(fullComp.organizer_id) !== String(interaction.user.id) && !isSuperAdmin) {
         return await interaction.reply({
           content: 'Only the organizer can edit this comp.',
           flags: 64
@@ -1778,7 +1781,9 @@ I made this based on my own experience and what I know about the weapons. There 
         await interaction.reply({ content: 'Comp not found.', flags: 64 });
         return;
       }
-      if (String(comp.organizer_id) !== String(interaction.user.id)) {
+
+      const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
+      if (String(comp.organizer_id) !== String(interaction.user.id) && !isSuperAdmin) {
         await interaction.reply({ content: 'Only the organizer can edit this comp.', flags: 64 });
         return;
       }
@@ -2216,6 +2221,7 @@ client.on('messageCreate', async (message) => {
     
     if (!nameArg) {
       // return message.reply('Usage: `!register Amin` or `!register @User Amin`');
+      await message.react('⚠️').catch(() => {});
       return message.reply({
         embeds: [
           new EmbedBuilder()
@@ -2228,6 +2234,7 @@ client.on('messageCreate', async (message) => {
 
     // ---- Self vs Registering others ----
     if (mention && !callerIsAdmin) {
+      await message.react('⚠️').catch(() => {});
       return message.reply({
         embeds: [
           new EmbedBuilder()
@@ -2239,6 +2246,7 @@ client.on('messageCreate', async (message) => {
     }
 
     if (nameArg.length > 16 || /[^A-Za-z0-9]/.test(nameArg)) {
+      await message.react('⚠️').catch(() => {});
       return message.reply({
         embeds: [
           new EmbedBuilder()
@@ -2260,6 +2268,7 @@ client.on('messageCreate', async (message) => {
       // Case A: self-registering user (people registering themselves)
       if (isSelfRegister) {
         if (user_already_registered.game_name.toLowerCase() === nameArg.toLowerCase()) {
+          await message.react('⚠️').catch(() => {});
           return message.reply({
             embeds: [
               new EmbedBuilder()
@@ -2269,6 +2278,7 @@ client.on('messageCreate', async (message) => {
             ]
           });
         }
+        await message.react('⚠️').catch(() => {});
         return message.reply({
           embeds: [
             new EmbedBuilder()
@@ -2280,6 +2290,7 @@ client.on('messageCreate', async (message) => {
       }
 
       // Admin must unregister target first (no auto-overwrite)
+      await message.react('⚠️').catch(() => {});
       return message.reply({
         embeds: [
           new EmbedBuilder()
@@ -2304,6 +2315,7 @@ client.on('messageCreate', async (message) => {
     }
 
     if((nameArg.toLowerCase() === 'start')){
+      await message.react('⚠️').catch(() => {});
       return message.reply({
         embeds: [
           new EmbedBuilder()
@@ -2320,6 +2332,7 @@ client.on('messageCreate', async (message) => {
       apiJson = await searchAlbion(nameArg);
     } catch (err) {
       console.error('Albion search error', err);
+      await message.react('⚠️').catch(() => {});
       return message.reply({
         embeds: [
           new EmbedBuilder()
@@ -2360,6 +2373,7 @@ client.on('messageCreate', async (message) => {
           }
         }
 
+        await message.react('👍').catch(() => {});
         await message.reply({
           embeds: [
             new EmbedBuilder()
@@ -2369,6 +2383,7 @@ client.on('messageCreate', async (message) => {
           ]
         });
       } else {
+        await message.react('⚠️').catch(() => {});
         await message.reply({
           embeds: [
             new EmbedBuilder()
@@ -2380,7 +2395,7 @@ client.on('messageCreate', async (message) => {
       }
       return;
     }
-
+    await message.react('⚠️').catch(() => {});
     return message.reply({
       embeds: [
         new EmbedBuilder()
