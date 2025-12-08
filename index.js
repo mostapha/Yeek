@@ -189,12 +189,19 @@ function buildCompMessageBody(comp) {
     // Role line - add with number and signup if exists
     const slot = comp.slots[roleIndex];
     roleIndex++;
-    
-    if (slot && slot.playerId) {
-      lines.push(`${roleIndex}. ${slot.roleName} <@${slot.playerId}>`);
-    } else {
-      lines.push(`${roleIndex}. ${slot.roleName}`);
-    }
+
+    // Parse role name and optional comment (separated by ~)
+    const parts = slot.roleName.split('~', 2);
+    const roleName = parts[0].trim();
+    const comment = parts[1]?.trim();
+
+    // Build the line components
+    const userMention = slot.playerId ? ` <@${slot.playerId}>` : '';
+    const formattedComment = comment ? ` _~${comment}_` : '';
+
+    // Combine: roleIndex. roleName [@playerId] [~comment]
+    lines.push(`${roleIndex}. ${roleName}${userMention}${formattedComment}`);
+
   });
   
   return lines.join('\n');
@@ -2091,7 +2098,7 @@ client.on('messageCreate', async (message) => {
     const mention = message.mentions.users.first();
     const targetId = mention ? mention.id : message.author.id;
 
-    if (mention && !callerIsAdmin) {
+    if (mention && !callerIsAdmin && targetId !== message.author.id) {
       return message.reply('You need admin permission to unregister other users.');
     }
     
