@@ -2400,7 +2400,8 @@ client.on('messageCreate', async (message) => {
         new EmbedBuilder()
           .setColor('#E74C3C')
           .setTitle('Register error')
-          .setDescription(`No players found matching "\`${nameArg}\`".`)
+          .setDescription(`No players found with the name **${nameArg}**`)
+          .setFooter({ text: `Make sure the game name is correct and the account is on the Europe server.` })
       ]
     });
 
@@ -2507,7 +2508,7 @@ client.on('messageCreate', async (message) => {
 
     const players = apiJson?.players || [];
     if (!players.length) {
-      return message.reply(`No players found matching "${nameArg}".`);
+      return message.reply(`No players found with the name "${nameArg}".`);
     }
 
     const player = players.find((p) => p.Name.toLowerCase() === nameArg.toLowerCase());
