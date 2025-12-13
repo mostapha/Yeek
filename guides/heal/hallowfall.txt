@@ -1,19 +1,21 @@
 # Hallowfall Staff
-Amazing healing option, easy to play and offers great healing and mobility  
-## Spells  
-### Q3: Holy Flash  
-> Heals up to 10 allies in 5m radius, use it on people **that need** heals. If team is full health, save it because you might need it later. Don't just spam it if the team does not need heals, it will also help you save mana  
-### W4: Holy Orb  
-> Throws a ball that explodes when it hits an ally and heals up to 10 people in 7m radius. Use it to quickly heal people that need healing. Also, it's what you need to use when someone is too far because it has a long range. You can also use it on close allies to get some heals yourself  
-### E: Divine Intervention  
-> Jump to a position and heal up to 10 people in 5m radius. Use it to quickly heal people that need healing. If you time it right, you can use it to deny some incoming damage as it offers immunity to damage and to reposition yourself when needed.  
-# How to play it  
-Position yourself somewhere in the backline or on the sides away from enemy zerg but close enough to heal at least one side of the team. You should never let the enemy caller catch you in his clumps, and use your spells only when needed. Don't just use your spells because you have them, only use a spell when you think it's needed.  
+Amazing healing option, easy to play and offers great healing and mobility
+---
+^ Spells to use 
+## ✶ Holy Flash : Q3
+Heals up to 10 allies in 5m radius, use it on people **that need** heals. If team is full health, save it because you might need it later. Don't just spam it if the team does not need heals, it will also help you save mana  
+## ✶ Holy Orb : W4
+Throws a ball that explodes when it hits an ally and heals up to 10 people in 7m radius. Use it to quickly heal people that need healing. Also, it's what you need to use when someone is too far because it has a long range. You can also use it on close allies to get some heals yourself  
+## ✶ Divine Intervention : E
+Jump to a position and heal up to 10 people in 5m radius. Use it to quickly heal people that need healing. If you time it right, you can use it to deny some incoming damage as it offers immunity to damage and to reposition yourself when needed.  
+---
+^ How to play it  
+Position yourself somewhere in the backline or on the sides away from enemy zerg but close enough to heal at least one side of the team. You should never let the enemy caller catch you in his clumps, and Use spells only when needed.  
 ## Supporting the team  
 As a healer you also support your team by using your items and spells at the right time  
 ### Knight Helmet  
-> Use Knight Helmet if you have it for your team when the caller is trying to engage (by calling 54321) so they don't get knocked by enemy defenses. Also use it when you see the enemy caller is trying to pull for engage — if you use it, he can't catch anyone.  
+Use Knight Helmet if you have it for your team when the caller is trying to engage (by calling 5-4-3-2-1) so they don't get knocked by enemy defenses. Also use it when you see the enemy caller is trying to pull for engage — if you use it, he can't catch anyone.  
 ### Druid Cowl  
-> Give Druid Cowl to your teammates when they need mana or ask for it  
+Give Druid Cowl to your teammates when they need mana or ask for it  
 ### Purity Robe  
-> Use Purity Robe when enemy tanks or caller is trying to go inside our zerg. Never let enemy tanks inside of us when were kiting and you have Purity Robe up
+Use Purity Robe when enemy tanks or caller is trying to go inside our zerg. Never let enemy tanks inside of us when were kiting and you have Purity Robe up

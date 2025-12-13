@@ -1,0 +1,21 @@
+^ Weapon
+# Oathkeepers
+The Oathkeepers give us increased movement speed and a shield that absorbs a large amount of damage for 5 seconds. It's an important defensive tool that can help us both when we engage and when we get engaged on.
+---
+^ Spells to use
+## ✶ Sacred Ground : Q3
+{{sacred_ground}}
+## ✶ Guard Rune : W3
+{{guard_rune}}
+## ✶ Blessed Aurora : E
+Grants movement speed and a defensive shield to allies when placed. This spell can be used either offensively or defensively.
+### Offensively
+You can use it when the caller is counting down 5-4-3-2-1, to give the team extra movement speed and to protect them from possible counter-engages
+### Defensively
+You can use it after we finish an engage to help us get back and kite or when the enemy is trying to engage on us. It's like you are using Rootbound or Enigmatic.
+---
+^ How to play it
+Playing offensive Oathkeepers:
+- When we are engaging and the caller is counting down 5-4-3-2-1, use your E to give our players shield and speed buff while engaging
+Playing defensive Oathkeepers:
+- When your team engages, Use your E to help them come back and kite.

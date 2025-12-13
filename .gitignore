@@ -9,3 +9,5 @@ stats.json
 jsconfig.json
 eslint.config.js
 *.sqlite3
+.vscode
+scan.py

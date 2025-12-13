@@ -1,0 +1,14 @@
+^ Weapon
+# Incubus Mace  
+Incubus Mace can be used as a support weapon that offers big HP cut and guard runes for our team. Use your E spell when the caller is engaging the enemy zerg before our DPS hit (on 3 or 2), and use guard runes (W3) when the enemy caller is trying to clump us so he can't pull us.  
+---
+^ Spells to use 
+## ✶ Sacred Ground : Q3
+{{sacred_ground}}
+## ✶ Guard Rune : W3
+{{guard_rune}}
+## ✶ Shrinking Curse : E
+When the caller counts down 5-4-3-2-1, use it on 3 or 2 before DPS hit. It reduces enemy max and current health points by 25% and also reduces damage and healing cast by 40%.  
+---
+^ How to play it  
+Your job is to support the team both offensively by using your E spell on clumps, and defensively by putting guard runes on our team when the enemy caller is looking at us so we don't get pulled.

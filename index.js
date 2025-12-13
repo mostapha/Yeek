@@ -6,6 +6,8 @@ import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
 import { readFileSync as readSync } from 'fs';
 import guides from './guides.json' with { type: 'json' };
+import { insertCommon } from './guides/common.js';
+
 
 import Database from 'better-sqlite3';
 import fs from 'fs';
@@ -510,7 +512,7 @@ const rolesTree = [
             name: '1h Mace',
             title: '1h Mace',
             icon: 'https://render.albiononline.com/v1/item/T8_MAIN_MACE?quality=4&size=60',
-            text: 'Same as Heavy Mace, great stoping weapon; all the spells can help stop engages, especially the W (roots, interrupts) and the E spell (slows, interrupts); used with hellion hood or judicator helmet'
+            text: 'Same as Heavy Mace, great stopping weapon; all the spells can help stop engages, especially the W (roots, interrupts) and the E spell (slows, interrupts); used with hellion hood or judicator helmet'
           },
           {
             name: '1h Hammer',
@@ -598,7 +600,7 @@ const rolesTree = [
             name: 'Bedrock',
             title: 'Bedrock Mace',
             icon: 'https://render.albiononline.com/v1/item/T8_MAIN_ROCKMACE_KEEPER?quality=4&size=60',
-            text: "The E spell knocks enemies back for long distance; it's good to delay enemies from engaging or to block them from coming closer; and because it's a mace get nice spells from the W and Q like guard rune that gives defense and immunity of movements effects"
+            text: "The E spell knocks enemies back for long distance; it's good to delay enemies from engaging or to block them from coming closer; and because it's a mace get nice spells from the W and Q like Guard Rune that gives defense and immunity of movements effects"
           },
           {
             name: 'Locus',
@@ -616,7 +618,7 @@ const rolesTree = [
             name: 'Oathkeepers',
             title: 'Oathkeepers',
             icon: 'https://render.albiononline.com/v1/item/T8_2H_DUALMACE_AVALON?quality=4&size=60',
-            text: "The E spell of Oathkeeper gives shield to allies, the shield blocks some damage and grants bonus movement speed; and because it's a mace you get nice spells from the Q and W like guard rune that gives defense and immunity to movements effects"
+            text: "The E spell of Oathkeepers gives shield to allies, the shield blocks some damage and grants bonus movement speed; and because it's a mace you get nice spells from the Q and W like Guard Rune that gives defense and immunity to movements effects"
           },
           {
             name: 'Enigmatic',
@@ -646,7 +648,7 @@ const rolesTree = [
                 name: 'Incubus',
                 title: 'Incubus Mace',
                 icon: 'https://render.albiononline.com/v1/item/T8_MAIN_MACE_HELL?quality=4&size=60',
-                text: "The incubus mace can reduce max and current HP to enemies by 25% for 8 seconds, it take nearly half HP of players; and because it's a mace we also get guard rune and silence Q"
+                text: "The incubus mace can reduce max and current HP to enemies by 25% for 8 seconds, it take nearly half HP of players; and because it's a mace we also get Guard Rune and silence Q"
               },
               {
                 name: 'Realmbreaker',
@@ -1448,7 +1450,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
   } else if (interaction.isButton()) {
 
-    // weapons guide buttons contains "::" so we find them here
+    // weapons guide buttons contains "::" so we find them here xxx
     if (interaction.customId.includes('::')) {
       const [category, weapon] = interaction.customId.split('::');
       const path = guides[category]?.[weapon];
@@ -1457,15 +1459,39 @@ I made this based on my own experience and what I know about the weapons. There 
         return interaction.reply({ content: 'Guide not found.', flags: 64 });
       }
 
+      await interaction.deferReply({ flags: 64 });
+
       try {
         const guideText = await readFile(new URL(`./guides/${path}`, import.meta.url), 'utf8');
         // await interaction.reply({ content: guideText, flags: 64 });
+        
 
-        const embed = new EmbedBuilder()
-          .setColor(0xE67E22)
-          .setTitle(weapon)
-          .setDescription(guideText)
-          .setFooter({ text: `Exclusive to Highland Brotherhood` });
+
+        // get parts of the guide
+        const parts_of_guide = insertCommon(guideText).split('---').map(e => e.trim()).filter(Boolean),
+              embeds = parts_of_guide.map(raw_text => {
+
+                let embed_title = null,
+                    embed_text = raw_text;
+
+                if (raw_text.startsWith('^')) {
+                  const newlineIndex = raw_text.indexOf('\n');
+                  embed_title = raw_text.slice(1, newlineIndex).trim();
+                  embed_text = raw_text.slice(newlineIndex + 1).trimStart();
+                }
+
+                const embed = new EmbedBuilder()
+                  .setColor(0xE67E22)
+                  .setDescription(embed_text)
+
+                if(embed_title){
+                  embed.setTitle(embed_title || weapon)
+                }
+
+                return embed
+              })
+
+
 
         const askButton = new ButtonBuilder()
           .setCustomId(`ask:${weapon}`)
@@ -1474,8 +1500,8 @@ I made this based on my own experience and what I know about the weapons. There 
 
         const row = new ActionRowBuilder().addComponents(askButton);
 
-        await interaction.reply({
-          embeds: [embed],
+        await interaction.editReply({
+          embeds: embeds,
           components: [row],
           flags: 64
         });
@@ -1491,7 +1517,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
       } catch (err) {
         console.error(err);
-        await interaction.reply({ content: 'Error loading guide.', flags: 64 });
+        await interaction.editReply({ content: 'Error loading guide.', flags: 64 });
       }
 
     } else if (interaction.customId.startsWith('ask:')) {
@@ -1585,8 +1611,6 @@ I made this based on my own experience and what I know about the weapons. There 
     }
 
   } else if (interaction.isModalSubmit()){
-
-
     if (interaction.customId && interaction.customId.startsWith('modal:ask:')) {
       const parts = interaction.customId.split(':');
       const weapon = parts[2] || 'unknown-weapon';

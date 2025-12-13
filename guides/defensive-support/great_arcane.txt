@@ -1,0 +1,26 @@
+^ Weapon
+# Great Arcane  
+Your job as Great Arcane is to stop enemies and peel for us. Stay in front or on the sides. Watch the enemy zerg and stop engages with your E.  
+---
+^ Spells to use 
+## ✶ Arcane Protection : Q2
+### What does it do?
+It gives shield and immunity to movement spells
+### How to use it
+You can use this spell to support teammates:
+- Shield players who are dying and on low HP.
+- Shield your caller so he doesn't get popped by enemy.
+## ✶ Motivating Cleanse : W2
+{{motivating_cleanse}}
+## ✶ Time Freeze : E
+### What does it do?
+Freezes enemies for 2.5 seconds and makes them immune to damage.
+### How to use it
+We can use this spell either defensively to stop enemy engages or offensively to set up engages for our team.
+---
+^ Great Arcane Tips
+- Stop enemies when they try to engage on us. Try to catch as many DPS as possible.
+- Don't stop the enemy caller only. Try to stop as many DPS as possible so they don't do damage, and to make the caller waste his E.
+- Use your E to help us get our cooldowns back. After we do an engage, use your E on the enemy zerg to give us time to kite back and get cooldowns back.
+- Don't use your E when we are engaging; If you use your E while we are engaging you are helping enemies by making them immune to damage, so only use your E when we are not engaging.
+- You can use your E offensively to set up engages. When the caller asks you to use your E on the enemy (by saying something like "Give me GA front"), try to catch close enemies with your E so the caller can engage on them after the freeze ends.

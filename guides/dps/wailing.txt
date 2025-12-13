@@ -1,11 +1,13 @@
 # Wailing Bow  
 Great DPS weapon that is easy to play and offers huge damage based on how many people you hit.  
-## Spells  
-### Q2: Deadly Shot  
-> Deals some damage and reduces damage resistance of all enemies hit. Keep using it to bully the enemy front line.  
-### W4: Explosive Arrows  
-> Enchants your bow and boosts your E spell damage. Always use it before your E spell.  
-### E: Demon Arrow  
-> Your main damage. When we are engaging and the caller is counting down 54321, use it on 1 with the other DPS. Make sure to use your W spell before it.  
-## How to play it  
-Position yourself away from the enemy zerg but close enough to engage when needed. When the caller is preparing to engage, find a good spot to hit from. When the caller starts counting down 54321, use your buffs (boots, jacket...) and use your W spell to enchant your bow, then hit the clump on 1.
+---
+^ Spells to use 
+## ✶ Deadly Shot : Q2
+Deals some damage and reduces damage resistance of all enemies hit. Keep using it to bully the enemy frontline.  
+## ✶ Explosive Arrows : W4 
+Enchants your bow and boosts your E spell damage. Always use it before your E spell.  
+## ✶ Demon Arrow : E
+Your main damage. When we are engaging and the caller is counting down 5-4-3-2-1, use it on 1 with the other DPS. Always use your W spell before it.  
+---
+^ How to play it  
+Position yourself away from the enemy zerg but close enough to engage when needed. When the caller is preparing to engage, find a good spot to hit from. When the caller starts counting down 5-4-3-2-1, use your buffs (boots, jacket...) and use your W spell to enchant your bow, then hit the clump on 1.

@@ -1,0 +1,16 @@
+^ Weapon
+# Malevolent Locus  
+A defensive support weapon that continuously cleanses crowd controls inside a growing bubble and gives damage resistance while channeling the spell.
+---
+^ Spells to use
+## ✶ Arcane Protection : Q2
+Use it to give people shields; Shield your caller when he's trying to engage so he doesn't get popped.
+## ✶ Motivating Cleanse : W2
+{{motivating_cleanse}}
+## ✶ The Void : E
+Creates a bubble that grows up to 8m radius in 4s. It cleanses all debuffs (stuns, slows...) and gives damage resistance to allies inside it.  
+You can use it in many cases:  
+- When getting engaged on, as a defensive tool to cleanse anyone caught in the clump and give them resistance.
+- When we are engaging, to help DPS reach the clump and not get stopped by enemies.
+- When we are kiting after an engage and enemy tanks try to CC us, use your E to help us disengage.
+- When passing the chokes: it's risky when the enemy zerg engages on us while we're clumped in a choke. Using your E in the choke helps everyone pass safely.

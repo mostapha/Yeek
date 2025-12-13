@@ -1,13 +1,20 @@
+^ Weapon
 # Permafrost  
-Perma is one of the most important DPS roles in the party. Besides dealing damage, it stuns enemy clumps and help other DPS know where to hit.  
-## Spells  
-### Ice Shard (Q2)
-> Works well with Scholar Robe. After using your E, if you have some spare time to deal more damage, spam your Q on the enemy clump, but watch out for Demon Armor reflect.
-> :small_orange_diamond: If you don't want to take the risk of getting your Q reflected by demon armor you can use last Q3 **Frozen Surge** on enemy front line and to help us kite.
-### Frost Lance (W4)
-> Use "Frost Lance" right after using your E (before the E spell explodes). The spell takes some skill but is very rewarding when used right, as it reduces enemy damage resistance.  
-> :small_orange_diamond:W3 (Frost Nova) is also an option since it gives you more survivability, but for better damage, W4 is preferred.  
-### Ice Crystal (E)
-> It stuns the enemy clump for 1 second and then explodes, dealing damage. Use it when we are engaging, right when the caller reaches 3 on the 54321 countdown. You should be the first DPS to hit since hitting early stops the enemy zerg from using abilities and shows other DPS where to hit.  
-# How to play it  
-Position yourself well to make it hard for enemy stoppers to interrupt you when engaging. When the caller is engaging, step up and find the spot where he's engaging. As he starts counting down, use your buffs (boot, robe), drop your E on the clump a little bit early, follow with your W if using Frost Lance (W4)
+Permafrost is a core DPS role in the party. It's used to mark and stun enemy clumps as a setup for other DPS in the party. It's best played by someone with experience and the ability to anticipate where engages will happen.
+---
+^ Spells to use 
+## ✶ Ice Shard : Q2
+Works well with Scholar Robe. After using your E, if you have some spare time to deal more damage, spam your Q on the enemy clump, but watch out for Demon Armor reflect.
+- If you don't want to risk your Q getting reflected by Demon Armor, you can swap to Q3 Frozen Surge and use it on the enemy frontline to slow them.
+## ✶ Frost Lance : W4
+Use "Frost Lance" spell immediately after using your E spell. The spell requires some skill but is very rewarding when used correctly, as it reduces enemy damage resistance.
+> W3 (Frost Nova) is also an option as it gives you mobility, but for better damage, W4 is preferred.
+## ✶ Ice Crystal : E
+It stuns the enemy clump for 1 second and then explodes, dealing damage. Use it at 3 during the 5-4-3-2-1 countdown. You should be the first DPS to hit since hitting early stops the enemy zerg from using abilities and shows other DPS where to hit.  
+---
+^ How to play it  
+Position yourself well to make it hard for enemy stoppers to interrupt you when engaging. When the caller is engaging, step up and find the spot where he's engaging.
+When the caller starts the countdown, use your buffs (robe, boot), drop your E on the clump a little bit early, follow with your W if using Frost Lance (W4).
+---
+^ Mark
+We usually mark the Permafrost to show Royal Jackets players where to use Royal Jacket, for this, all DPS in the team will follow you around, so make sure to position yourself correctly and in a safe position as much as possible.

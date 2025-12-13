@@ -1,0 +1,14 @@
+^ Weapon
+# Lifecurse Staff  
+Lifecurse is a support weapon that helps DPS wipe enemies. Its E ability purges all buffs from enemies, and its W can be a bonus pierce. You use your E with the other DPS when they engage to purge any buffs that might help the enemy zerg survive the damage.  
+---
+^ Spells to use 
+## ✶ Cursed Tar : Q3
+Not very important, but just keep using your Q spell in front to deal some damage to the frontline.  
+## ✶ Armor Piercer : W1
+Very important quick pierce that you need to use when the caller is engaging. You can use it right before your E spell.  
+## ✶ Enfeeble Blades : E
+Use your E when the caller is engaging the enemy zerg. Your E purges all buffs from enemies and makes it easier for our DPS to kill.  
+---
+^ How to play it  
+When the caller is preparing to engage and counting down 5-4-3-2-1, use your W first, then use your E right before the caller reaches 1. Use your W and E a bit before 1 to give pierce and purge buffs and shields before the DPS hit.

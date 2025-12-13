@@ -1,31 +1,33 @@
 {
-  "🛡️ Tank": {
+  "🛡️  Tank": {
     "Heavy Mace": "tank/heavy_mace.txt",
-    "Great Arcane": "tank/great_arcane.txt",
-    "Bedrock": "tank/bedrock.txt",
-    "1h arcane": "tank/1h_arcane.txt",
     "Great Hammer": "tank/great_hammer.txt",
     "1h Hammer": "tank/1h_hammer.txt",
     "Grovekeeper": "tank/grovekeeper.txt",
     "Grailseeker": "tank/grailseeker.txt",
     "Hoarfrost": "tank/hoarfrost.txt"
   },
-  "💫 Support": {
-    "Rootbound": "support/rootbound.txt",
-    "Occult": "support/occult.txt",
-    "Oathkeeper": "support/oathkeeper.txt",
-    "Enigmatic": "support/enigmatic.txt",
-    "Locus": "support/locus.txt"
+  "🧱  Defensive Support": {
+    "Great Arcane": "defensive-support/great_arcane.txt",
+    "1h arcane": "defensive-support/1h_arcane.txt",
+    "Bedrock": "defensive-support/bedrock.txt",
+    "Rootbound": "defensive-support/rootbound.txt",
+    "Oathkeepers": "defensive-support/Oathkeepers.txt",
+    "Enigmatic": "defensive-support/enigmatic.txt",
+    "Locus": "defensive-support/locus.txt"
   },
-    "🎯 DPS support": {
-    "Damnation": "dps-support/damnation.txt",
-    "Lifecurse": "dps-support/lifecurse.txt",
-    "Carving": "dps-support/carving.txt",
-    "Spirithunter": "dps-support/spirithunter.txt",
-    "Rotcaller": "dps-support/rotcaller.txt",
-    "Incubus": "dps-support/incubus.txt"
+  "⚔️  Offensive Support": {
+    "Spirithunter": "offensive-support/spirithunter.txt",
+    "Damnation": "offensive-support/damnation.txt",
+    "Incubus": "offensive-support/incubus.txt",
+    "Carving": "offensive-support/carving.txt",
+    "Lifecurse": "offensive-support/lifecurse.txt",
+    "Rotcaller": "offensive-support/rotcaller.txt"
   },
-  "⚔️ DPS": {
+  "🎯  Other Support": {
+    "Occult": "other-support/occult.txt"
+  },
+  "💥  DPS": {
     "Permafrost": "dps/permafrost.txt",
     "Realmbreaker": "dps/realmbreaker.txt",
     "Spiked": "dps/spiked.txt",
@@ -34,7 +36,7 @@
     "Dawnsong": "dps/dawnsong.txt",
     "Wailing": "dps/wailing.txt"
   },
-  "💚 Heal": {
+  "💚  Heal": {
     "Hallowfall": "heal/hallowfall.txt",
     "Fallen": "heal/fallen.txt",
     "Blight": "heal/blight.txt"

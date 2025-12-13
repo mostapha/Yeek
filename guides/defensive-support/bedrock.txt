@@ -1,0 +1,17 @@
+^ Weapon
+# Bedrock Mace  
+Your job as a Bedrock Mace is to peel and help us kite, keeping us away from the enemy zerg. After we engage, use your E to stop enemies from reaching us. Use your E diagonally to block as much space as possible; don't just drop it in a straight line because they can easily pass through it. Make it hard for them to get through.  
+---
+^ Spells to use
+## ✶ Sacred Ground : Q3
+{{sacred_ground}}
+## ✶ Guard Rune : W3
+{{guard_rune}}
+## ✶ Force of Nature : E
+### What does it do?
+It knocks enemies away, creating space between us and enemies, for example to reset cooldowns.
+### How to use it?
+You use it generally to protect us from enemies, either by stopping them or keeping them away from us when we are trying to kite.
+- You can use it **after** we finish an engage, so we can stay away from enemies until we get our cooldowns back
+- You can use it to push/knock enemy caller: you can use it directly on enemy caller to knock him back and delay him from engaging
+- Try to use it diagonally to block big range, when you use it in choke try to block all the choke with it

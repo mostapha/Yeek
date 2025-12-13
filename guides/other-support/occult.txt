@@ -1,0 +1,22 @@
+^ Weapon
+# Occult Staff  
+The Occult Staff is support weapon that can give the team 60% more speed when used. You can use it offensively, defensively, or when the caller asks for it.
+---
+^ Spells to use
+## ✶ Arcane Protection : Q2
+Use it to give people shields; Shield your caller when he's trying to engage so he doesn't get popped.
+## ✶ Motivating Cleanse : W2 (or Empowering Beam : W4)
+Normally, you use **Motivating Cleanse**, but if there are enough cleanses in the team, you can swap it to **Empowering Beam (4th W)**.
+{{motivating_cleanse}}
+> ### ✶ Empowering Beam
+> If playing **Empowering Beam:**, beam one of the DPS in the team to give them up to 80% extra damage. Spiked or Permafrost are good usually.
+## ✶ Time Corridor : E
+The magic carpet that speeds up the team. When used offensively, cast it when the caller is trying to engage. When used defensively, cast it after the caller finishes the engage and you need to kite. The caller might also specify a direction for the Occult.
+---
+^ How to play it
+### Offensive Occult
+Use your Occult E when the caller is engaging by counting 5-4-3-2-1. In this case, you use it to help DPS and support reach the clump.  
+### Defensive Occult:
+Use your Occult after we finish an engage. You wait until your callers engages and all DPS hit then you use your Occult to help the team kite back or move to safe place.
+### Occult on demand:
+The caller will ask for Occult when needed, caller will tell what direction he needs occult at, something like "Occult east/south...". In this case, use the Occult E in that direction.

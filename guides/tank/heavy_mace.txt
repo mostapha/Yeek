@@ -1,15 +1,28 @@
-# Heavy Mace  
-Your job as a Heavy Mace depends on whether you are an Offensive Heavy Mace or a Defensive Heavy Mace. If you are an Offensive Heavy Mace, your job is to catch enemies for your caller when he tries to engage. If you are playing a Defensive Heavy Mace, your job is to stop enemy engages. When you see the enemy zerg trying to engage on your zerg, you need to stop them.
-## Spells  
-### Sacred Ground (Q3)  
-> Keep spamming your Q ability in front of us, so if the enemy tries to engage, they get silenced and slowed. Keep using Q on the ground whenever you can.  
-### Snare Charge (W2)  
-> Use your W to jump on enemies when they try to engage on us. You root them and then silence them with your E. You can also use your W to jump on enemies to interrupt their channeling spells, like Assassin Hood.  
-### Battle Howl (E)  
-> Silence enemies. Use it on the enemy zerg the moment they try to engage. Try to catch as many as possible and use it on them.  
-## Smmary
-### Offensive Heavy Mace
+^ Weapon:
+# Heavy Mace
+You can play heavy mace either offensively or defensively.
+- When played offensively you focus more on catching enemies for your caller
+- When played defensively you focus more on stopping enemy engages and protect your team.
+---
+^ Spells to use:
+## ✶ Sacred Ground : Q3  
+{{sacred_ground}}
+## ✶ Snare Charge : W2  
+### What does it do?
+Roots and interrupts all players caught
+### How to use it?
+Offensively:
+- set up engages: When your caller is looking for engage, catch as many players as you can using your W; this will help the caller pull more enemies.
+Defensively:
+- stop engage: When enemy caller is trying to engage on your team, use your W spell to stop them, you can use E spell after it if needed.
+Other uses:
+- stop enemy channeling and casting: you can use this ability to stop enemies from using channeling and casting spells like Assassin Hoods and Royal Jackets, this helps by delaying their engage.
+## ✶ Battle Howl : E
+Silence enemies; Use it on the enemy zerg the moment they try to engage, try to catch as many as possible and use it on them.
+---
+^ The Idea
+## Offensive Heavy Mace
 When your caller is trying to engage in a direction, you can set up the engage for him, so if you know he's going to engage east side for example, you can jump and root people in east side to make it easy for him to make a clump.
-### Defensive Heavy Mace
+## Defensive Heavy Mace
 Your job is to defend your zerg by stopping the enemy zerg from engaging. When you see enemy zerg is trying to engage, step up and stop them. Jump on them with your W and silence them with your E.  
 You can tell when they are about to engage by watching when they use their buffs (boots, armor, and helmets).

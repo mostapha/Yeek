@@ -1,9 +1,11 @@
+^ Weapon
 # Great Hammer  
 Your job as a Great Hammer is to stop the enemy zerg and keep it away from our zerg. When you see the enemy zerg using their buffs and preparing for an engage, knock/stun them with your E and use your W to slow them. You also help us kite. When we do our engage, use your W to slow the enemy zerg.  
-## Spells  
-### Iron Breaker (Q3)  
-> Spam your Q on enemies close to you. You can also use it when your caller is clumping enemies for an engage to reduce enemy damage resistance.  
-### Inertia Ring (W5)  
-> Use the Inertia Ring to help us kite. After every engage, we need 15 to 20 seconds to get our cooldowns back. During that time, you need to slow enemies and keep them away from us. This spell helps you do that.  
-### Tackle (E)  
-> Use your E to stop enemy engages. When you see the enemy zerg trying to engage, make sure to stop them with your E before they engage.
+---
+^ Spells to use
+## ✶ Iron Breaker : Q3  
+Spam your Q on enemies close to you. You can also use it when your caller is clumping enemies for an engage to reduce enemy damage resistance.  
+## ✶ Inertia Ring : W5  
+Use the Inertia Ring to help us kite. After every engage, we need 15 to 20 seconds to get our cooldowns back. During that time, you need to slow enemies and keep them away from us. This spell helps you do that.  
+## ✶ Tackle : E
+Use your E to stop enemy engages. When you see the enemy zerg trying to engage, make sure to stop them with your E before they engage.
