@@ -1512,8 +1512,8 @@ I made this based on my own experience and what I know about the weapons. There 
         // Log the event
         if (interaction.user.id !== '760271416544722944') {
           console.log(`${weapon} guide requested by: ${displayName} (ID: ${interaction.user.id})`);
+          recordStat(interaction.user.id, weapon, displayName);
         }
-        recordStat(interaction.user.id, weapon, displayName);
 
       } catch (err) {
         console.error(err);

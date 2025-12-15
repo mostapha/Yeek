@@ -1,14 +1,14 @@
 ^ Weapon
 # Carving Sword  
-Your role as a Carving Sword user is to reduce enemy resistance with your E before each engage. This will help our DPS do more damage.  
+Carving Sword is a pierce weapon used to reduce enemy damage resistance with its E spell, increasing our DPS.
 ---
 ^ Spells to use
 ## ✶ Heroic Cleave : Q2
-Use your Q to get heroic charges. You can use it on mobs or enemy tanks, but don't go inside the enemy zerg to use it because you might get targeted.  
+Use your Q to get heroic charges. You can use it on mobs or close enemy players, but don't go inside the enemy zerg to use it because you might get targeted.  
 ## ✶ Iron Will : W5
 Always use your W spell before your E when we are engaging on the enemy zerg. This spell gives you one more heroic charge, and more heroic charges mean more damage resistance reduction to enemies.  
 ## ✶ Fearless Strike : E 
-Your E spell reduces enemy resistance, so it's important to use your E **before** other DPS hit the clump.  
+Your E spell reduces enemy damage resistance, so it's important to use your E **before** other DPS hit the clump.  
 ---
 ^ How to use it  
 In Carving Sword, the more *heroic charges* you have, the more resistance you reduce for enemies. Make sure to get some charges by using your Q ability on enemy players close to you or mobs, then try to keep them up all the time. When the caller is preparing to engage and counting down 5-4-3-2-1, use your W first (to get one more charge), then use your E. You can use your E when the caller reaches 3 or 2 to make sure you reduce the resistance of enemies before the other DPS hit.  

@@ -1,14 +1,14 @@
 ^ Weapon
-# Spirithunter  
-Your role as a Spirithunter is to reduce enemy resistance to support our DPS.
+# Spirithunter
+Spirithunter is a pierce weapon brought for its E-spell debuff. It reduces enemy damage resistance to increase our DPS and must be timed correctly to be effective.
 ---
 ^ Spells to use 
 ### ✶ Lunging Strike : Q1
-Use your Q ability on enemy tanks and enemies close to you.  
+Use your Q ability on enemy tanks and enemies close to you.
 ### ✶ Forest of Spears : W1
-You can use your W after using your E when we are engaging on the enemy. It's a bonus DPS that can help our DPS kill.  
+You can use your W after using your E when we are engaging on the enemy. It's a bonus DPS that can help kill.
 ### ✶ Corrupting Steel : E
-When we are engaging on the enemy zerg and the caller is counting down 5-4-3-2-1, Use your E before DPS hit. A good time to use it is at 3 or 2 to reduce enemy resistance before the DPS hit.  
+When we are engaging on the enemy zerg and the caller is counting down 5-4-3-2-1, Use your E before DPS hit. A good time to use it is at 3 or 2 to reduce enemy damage resistance and helps DPS do more damage.  
 ---
 ^ How to play it  
 Stay in a good position away from the frontline and wait for the caller to countdown 5-4-3-2-1, then step up and drop your E on the enemy zerg, followed by your W. Just make sure you use your E before 1 so our DPS benefit from the resistance reduction.

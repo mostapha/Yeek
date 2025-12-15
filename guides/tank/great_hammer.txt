@@ -9,3 +9,9 @@ Spam your Q on enemies close to you. You can also use it when your caller is clu
 Use the Inertia Ring to help us kite. After every engage, we need 15 to 20 seconds to get our cooldowns back. During that time, you need to slow enemies and keep them away from us. This spell helps you do that.  
 ## ✶ Tackle : E
 Use your E to stop enemy engages. When you see the enemy zerg trying to engage, make sure to stop them with your E before they engage.
+---
+^ How to play it
+Stay close to your team and always watch the enemy team.
+- If the enemy team is engaging, stop them with your E spell.
+- If your team is engaging, use your Q spell on the clump and be ready to stop any counter-engages.
+- If your team has finished engaging and is kiting back, drop your W spell to slow enemies and create space between your team and the enemies.
