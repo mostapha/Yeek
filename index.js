@@ -21,6 +21,7 @@ const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
 const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
 const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID;
 const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID;
+const YEEK_COMMANDS_CHANNEL = process.env.YEEK_COMMANDS_CHANNEL;
 
 // Albion API base
 const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
@@ -2017,48 +2018,67 @@ I made this based on my own experience and what I know about the weapons. There 
 
 });
 
+const ticketCategoryId = process.env.TICKETS_CATEGORY_ID;
 
+const waitingTickets = new Map();
 client.on('channelCreate', async (channel) => {
   if (!channel.isTextBased() || channel.type !== ChannelType.GuildText) return;
 
-  const ticketCategoryId = process.env.TICKETS_CATEGORY_ID;
   if (channel.parentId !== ticketCategoryId) return;
   if (!channel.name.startsWith('ticket-')) return;
-
 
   setTimeout(async () => {
     try {
       if (!channel.permissionsFor(channel.guild.members.me).has('SendMessages')) return;
 
       const embed = new EmbedBuilder()
-        .setColor(0x2ecc71) // green tone, change if you want
-        .setTitle('Verification Checklist')
+        .setColor(0x2ecc71)
+        .setTitle('Checklist')
         .setDescription(`
-Follow the steps below so we can verify your account:
+### Answer these questions:
+1. Do you agree to play **only** for Martlock?
+2. Do you understand English?
+3. Can you join voice chat to hear calls? (no need to talk)
+### Send the following screenshots:
+1. Your character stats
+2. Your personal faction warfare overview
+`)
+        .setImage('https://i.imgur.com/ZVoVlcC.png')
+        .setFooter(
+          { text: `After that, we'll get back to you as soon as possible. Thanks!` }
+        )
 
-<:N9_1:1410821676924538891>**Answer these questions:**
-<:STBF11:1410819715588296815>Do you agree to play **only** for Martlock faction?
-<:STBF11:1410819715588296815>Do you understand English?
-<:STBF11:1410819715588296815>Can you join voice chat to hear calls? (no need to talk)
 
-<:N9_2:1410821683320721478>**Send us the following screenshots:**
-<:STBF11:1410819715588296815>Your character stats
-<:STBF11:1410819715588296815>Your personal faction warfare overview (3rd tab, showing enlist and all time points)
 
-After that, we'll get back to you as soon as possible. Thanks!
-`);
+    
+      await channel.send({
+        embeds: [
+          embed
+        ]
+      });
 
-      await channel.send({ embeds: [embed] });
     } catch (err) {
       console.error(`❌ Failed to send follow-up message in ${channel.name}:`, err);
     }
-  }, 2000); // wait 2 seconds
+  }, 2000);
+
+  // check for quick verify
+  for (const [userId, data] of waitingTickets) {
+    if (!channel.permissionOverwrites.cache.has(userId)) continue;
+    
+    clearTimeout(data.timeout);
+    data.resolve(channel.id);
+    waitingTickets.delete(userId);
+    break;
+  }
+
 });
 
 
 const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link','kb', 'modkb', 'registerhelp']),
       VISITOR_ROLE_ID = process.env.VISITOR_ROLE_ID,
       MESSAGE_USE_IN_ALLOWED_CHANNELS = `Please use register commands in the https://discord.com/channels/1247740449959968870/1247939976667205633 or https://discord.com/channels/1247740449959968870/1275402208845893644 channel.`;
+
 
 client.on('messageCreate', async (message) => {
 
@@ -2395,16 +2415,113 @@ client.on('messageCreate', async (message) => {
             console.error('Failed to set nickname to ' + player.Name + ': ', err);
           }
         }
+      
+        const confirmRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`quick_verify`)
+            .setLabel('Open Verification Ticket')
+            .setStyle(ButtonStyle.Success)
+        );
 
         await message.react('👍').catch(() => {});
-        await message.reply({
+        const prompt = await message.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#2ECC71')
               .setTitle('Register success')
               .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
-          ]
+          ],
+          components: isSelfRegister ? [confirmRow] : []
         });
+        
+        if(isSelfRegister){
+          // Collector: allow either the command invoker or an admin to confirm
+          // replace existing collector + handlers with this (minimal change)
+          const collector = prompt.createMessageComponentCollector({
+            filter: i => i.user.id === message.author.id,
+            time: 30_000,
+            max: 1
+          });
+        
+          let acted = false;
+          collector.on('collect', async interaction => {
+            acted = true;
+
+            console.log('collect interaction');
+            await interaction.deferUpdate().catch(() => {});
+          
+            // 2️⃣ Disable button immediately
+            const disabledRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId('quick_verify_progress')
+                .setLabel('Opening ticket...')
+                .setStyle(ButtonStyle.Secondary) // Gray color
+                .setDisabled(true) // ⭐ Makes it unclickable
+            );
+            await prompt.edit({ components: [disabledRow] }).catch(() => {});
+  
+
+            // 1️⃣ create the promise FIRST
+            const ticketPromise = new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => {
+                waitingTickets.delete(interaction.user.id);
+                reject(new Error('Ticket creation timeout after 15s'));
+              }, 15000);
+  
+              waitingTickets.set(interaction.user.id, { resolve, reject, timeout });
+            });
+
+            // 2️⃣ trigger TicketTool (this creates the channel)
+            const yeekCommandsChannel = await client.channels.fetch(YEEK_COMMANDS_CHANNEL);
+            if (!yeekCommandsChannel) {
+              const data = waitingTickets.get(interaction.user.id);
+              if (data) {
+                clearTimeout(data.timeout);
+                data.reject(new Error('Commands channel not found'));
+                waitingTickets.delete(interaction.user.id);
+              }
+              return;
+            }
+            await yeekCommandsChannel.send({
+              content: `$new <@${interaction.user.id}> (for quick create ticket)`
+            });
+
+
+            // 3️⃣ NOW wait for channelCreate to resolve it
+            try {
+              const channelId = await ticketPromise;
+              console.log('Ticket created:', channelId);
+
+              // ✅ Use followUp() instead of deferReply()
+              await interaction.followUp({ 
+                content: `Ticket is created for you, check it here <#${channelId}>`, 
+                flags: 64
+              });
+    
+            } catch (error) {
+              console.error('Failed to get ticket:', error);
+
+              // ✅ Use followUp() instead of deferReply()
+              await interaction.followUp({
+                content: `⚠️ Failed to get ticket information, if you don't see any tickets, open it here <#1383460322911715459>`,
+                flags: 64
+              });
+
+            }
+          
+            // remove button
+            await prompt.edit({ components: [] }).catch(() => {});
+          });
+
+          collector.on('end', async () => {
+            if (!acted) {
+              await prompt.edit({ components: [] }).catch(() => {});
+            }
+          });
+        }
+
+
+
       } else {
         await message.react('⚠️').catch(() => {});
         await message.reply({
