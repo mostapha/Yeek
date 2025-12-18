@@ -2447,7 +2447,7 @@ client.on('messageCreate', async (message) => {
           collector.on('collect', async interaction => {
             acted = true;
 
-            console.log('collect interaction');
+            // console.log('collect interaction');
             await interaction.deferUpdate().catch(() => {});
           
             // 2️⃣ Disable button immediately
@@ -2490,7 +2490,7 @@ client.on('messageCreate', async (message) => {
             // 3️⃣ NOW wait for channelCreate to resolve it
             try {
               const channelId = await ticketPromise;
-              console.log('Ticket created:', channelId);
+              console.log('Quick Ticket created:', channelId);
 
               // ✅ Use followUp() instead of deferReply()
               await interaction.followUp({ 
@@ -2503,7 +2503,7 @@ client.on('messageCreate', async (message) => {
 
               // ✅ Use followUp() instead of deferReply()
               await interaction.followUp({
-                content: `⚠️ Failed to get ticket information, if you don't see any tickets, open it here <#1383460322911715459>`,
+                content: `Failed to get ticket information, if you don't see any tickets, open it here <#1383460322911715459>`,
                 flags: 64
               });
 
