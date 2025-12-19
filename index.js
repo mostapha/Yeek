@@ -2060,7 +2060,7 @@ client.on('channelCreate', async (channel) => {
     } catch (err) {
       console.error(`❌ Failed to send follow-up message in ${channel.name}:`, err);
     }
-  }, 2000);
+  }, 4000);
 
   // check for quick verify
   for (const [userId, data] of waitingTickets) {
