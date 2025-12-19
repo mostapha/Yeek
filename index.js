@@ -2443,12 +2443,15 @@ client.on('messageCreate', async (message) => {
             max: 1
           });
         
-          let acted = false;
+          // let acted = false;
           collector.on('collect', async interaction => {
-            acted = true;
+            // acted = true;
 
             // console.log('collect interaction');
-            await interaction.deferUpdate().catch(() => {});
+            await interaction.deferReply({ flags: 64 }).catch(err => {
+              console.error('Failed to defer reply:', err);
+            });
+
           
             // 2️⃣ Disable button immediately
             const disabledRow = new ActionRowBuilder().addComponents(
@@ -2458,7 +2461,9 @@ client.on('messageCreate', async (message) => {
                 .setStyle(ButtonStyle.Secondary) // Gray color
                 .setDisabled(true) // ⭐ Makes it unclickable
             );
-            await prompt.edit({ components: [disabledRow] }).catch(() => {});
+            await prompt.edit({ components: [disabledRow] }).catch(err => {
+              console.error('Failed to edit prompt (disable button):', err);
+            });
   
 
             // 1️⃣ create the promise FIRST
@@ -2510,20 +2515,24 @@ client.on('messageCreate', async (message) => {
             }
           
             // remove button
-            await prompt.edit({ components: [] }).catch(() => {});
+            await prompt.edit({ components: [] }).catch(err => {
+              console.error('Failed to remove button:', err);
+            });
           });
 
           collector.on('end', async () => {
-            if (!acted) {
-              await prompt.edit({ components: [] }).catch(() => {});
-            }
+            await prompt.edit({ components: [] }).catch(err => {
+              console.error('Failed to remove button:', err);
+            });
           });
         }
 
 
 
       } else {
-        await message.react('⚠️').catch(() => {});
+        await message.react('⚠️').catch(err => {
+          console.error('Failed to react:', err);
+        });
         await message.reply({
           embeds: [
             new EmbedBuilder()
