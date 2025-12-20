@@ -1284,6 +1284,9 @@ I made this based on my own experience and what I know about the weapons. There 
 
   } else if (interaction.isUserContextMenuCommand()) {
     if (interaction.commandName === 'Verify') {
+      await interaction.deferReply({ flags: 64 }).catch(err => {
+        console.error('Failed to defer reply:', err);
+      });
       try {
 
         const allowedRoles = [
@@ -1294,7 +1297,7 @@ I made this based on my own experience and what I know about the weapons. There 
         const memberRoles = interaction.member.roles;
 
         if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
-          await interaction.reply({ content: 'You don\'t have permission to use this command.', flags: 64 });
+          await interaction.followUp({ content: 'You don\'t have permission to use this command.', flags: 64 });
           return;
         }
 
@@ -1310,10 +1313,10 @@ I made this based on my own experience and what I know about the weapons. There 
           await member.roles.add(roleId);
         }
 
-        await interaction.reply({ content: `Roles are given to <@${member.id}>`, flags: 64 });
+        await interaction.followUp({ content: `Roles are given to <@${member.id}>`, flags: 64 });
       } catch (err) {
         console.error(err);
-        await interaction.reply({ content: '❌ Failed to give roles.', flags: 64 });
+        await interaction.followUp({ content: '❌ Failed to give roles.', flags: 64 });
       }
     } else if (interaction.commandName === 'Update name') {
 
