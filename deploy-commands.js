@@ -100,7 +100,7 @@ const commands = [
   // Example for your deploy script
   new SlashCommandBuilder()
     .setName('register')
-    .setDescription('Register your Albion character')
+    .setDescription('Register your Albion name')
     .addStringOption(option => 
       option.setName('ign')
         .setDescription('Your In-Game Name')
@@ -112,7 +112,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('unregister')
-    .setDescription('Unregister an Albion character and clear roles')
+    .setDescription('Unregister the name and purge the roles')
     .addUserOption(option => 
       option.setName('user')
         .setDescription('User to unregister (Admin/Mod only)')
