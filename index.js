@@ -937,7 +937,7 @@ function buildMessage(node, path) {
 
 
 const client = new Client({
-  intents: [GatewayIntentBits.GuildPresences, GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildScheduledEvents],
+  intents: [GatewayIntentBits.GuildPresences, GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildScheduledEvents, GatewayIntentBits.GuildVoiceStates],
   partials: [
     Partials.Message,   // <-- important to get deleted messages that weren't cached
     Partials.Channel,   // useful if message's channel wasn't cached
@@ -1279,6 +1279,103 @@ I made this based on my own experience and what I know about the weapons. There 
         await showEditCompModal(interaction, comp);
         return;
       }
+      case 'comp_check_voice': {
+
+        await interaction.deferReply({ flags: 64 });
+
+        // Must be used inside a comp thread
+        if (!interaction.channel || !interaction.channel.isThread()) {
+          await interaction.editReply({ content: 'This command must be used inside a comp thread.' });
+          return;
+        }
+
+        // Find comp by thread id
+        const comp = getCompByThreadId(interaction.channel.id);
+        if (!comp) {
+          await interaction.editReply({ content: 'This thread is not linked to a comp.' });
+          return;
+        }
+
+        try {
+
+          const voiceChannelId = interaction.member.voice?.channelId;
+
+          if (!voiceChannelId) {
+            await interaction.editReply({ content: 'You must be in a voice channel to use this command.' });
+            return;
+          }
+    
+          // Fetch the comp message directly using thread.id (which equals message.id)
+          const parentChannel = interaction.channel.parent || await interaction.guild.channels.fetch(interaction.channel.parentId);
+          const compMessage = await parentChannel.messages.fetch(interaction.channel.id);
+    
+          // Extract mentioned user IDs from the comp message
+          const mentionedUserIds = new Set(compMessage.mentions.users.map(user => user.id));
+    
+          // Get signed up player IDs from comp slots
+          const signedUpUserIds = new Set(
+            comp.slots
+              .filter(slot => slot.playerId)
+              .map(slot => slot.playerId)
+          );
+    
+          // Get current voice channel members (now from freshly fetched channel)
+          const voiceStates = interaction.guild.voiceStates.cache.filter(
+            vs => vs.channelId === voiceChannelId
+          );
+
+          const voiceMemberIds = new Set(voiceStates.map(vs => vs.id));
+
+          // Find users in voice but not mentioned
+          const inVoiceNotMentioned = [];
+          voiceStates.forEach(vs => {
+            if (!mentionedUserIds.has(vs.id) && !vs.member?.user.bot) {
+              inVoiceNotMentioned.push(vs.id);
+            }
+          });
+    
+          // Find users signed up but not in voice
+          const signedUpNotInVoice = [];
+          for (const userId of signedUpUserIds) {
+            if (!voiceMemberIds.has(userId)) {
+              signedUpNotInVoice.push(userId);
+            }
+          }
+
+
+          let response = '';
+          if(inVoiceNotMentioned.length > 0 || signedUpNotInVoice.length > 0){
+            response += `I checked voice chat and the people who signed up, here are the results:\n`
+            if (inVoiceNotMentioned.length > 0) {
+            // Not signed section
+              response += '### Not signed\n';
+              inVoiceNotMentioned.forEach(id => {
+                response += `<:CF11:1408080636878524606> <@${id}>\n`;
+              });
+            }
+    
+
+            if (signedUpNotInVoice.length > 0) {
+              response += '### Not in Voice\n';
+              signedUpNotInVoice.forEach(id => {
+                response += `<:CF11:1408080636878524606> <@${id}>\n`;
+              });
+            }
+
+          } else {
+            response += `I don't see any problems!`;
+          }
+
+          await interaction.editReply({ content: response });
+    
+        } catch (err) {
+          console.error('Error checking voice members:', err);
+          await interaction.editReply({ content: 'An error occurred while checking voice members.' });
+        }
+  
+        break;
+      }
+
     }
 
 

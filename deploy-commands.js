@@ -91,6 +91,12 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
     .toJSON(),
 
+  new SlashCommandBuilder()
+    .setName('comp_check_voice')
+    .setDescription('Check who is in your voice channel but not mentioned in the comp')
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
+    .toJSON(),
+
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
