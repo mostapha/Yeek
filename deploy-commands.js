@@ -97,6 +97,27 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
     .toJSON(),
 
+  // Example for your deploy script
+  new SlashCommandBuilder()
+    .setName('register')
+    .setDescription('Register your Albion character')
+    .addStringOption(option => 
+      option.setName('ign')
+        .setDescription('Your In-Game Name')
+        .setRequired(true))
+    .addUserOption(option => 
+      option.setName('user')
+        .setDescription('User to register (Admin/Mod only)')
+        .setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('unregister')
+    .setDescription('Unregister an Albion character and clear roles')
+    .addUserOption(option => 
+      option.setName('user')
+        .setDescription('User to unregister (Admin/Mod only)')
+        .setRequired(false))
+
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);

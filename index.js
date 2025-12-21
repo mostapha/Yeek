@@ -982,6 +982,393 @@ function buildNickname(guildName, playerName) {
 }
 
 
+// --- SHARED REGISTER LOGIC START ---
+async function executeRegisterLogic({ source, targetUser, gameName, executorMember }) {
+  // source: can be Message or ChatInputCommandInteraction
+  // targetUser: Discord User object
+  // gameName: String
+  // executorMember: GuildMember object (the person running the command)
+
+  const isInteraction = source.isChatInputCommand?.();
+  const targetId = targetUser.id;
+  const executorId = executorMember.id;
+  const isSelfRegister = targetId === executorId;
+  const callerIsAdmin = isAdminOrMod(executorMember);
+
+  // Helper wrappers to unify Message vs Interaction responses
+  const doReply = async (payload) => {
+    if (isInteraction) {
+      // For interaction, we assume it's already deferred or we followUp
+      if (source.deferred || source.replied) {
+        return source.editReply(payload);
+      }
+      return source.reply({ ...payload, fetchReply: true });
+    } else {
+      return source.reply(payload);
+    }
+  };
+
+  const doReact = async (emoji) => {
+    if (!isInteraction) {
+      await source.react(emoji).catch(() => {});
+    }
+  };
+
+  const HOW_TO_REGISTER_TEXT = 'Please use `!register + your game name` to register.\nFor example: `!register gamer123` if your game name is `gamer123`';
+
+  // 1. Permission Check for registering others
+  if (!isSelfRegister && !callerIsAdmin) {
+    await doReact('⚠️');
+    return doReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setTitle('Register error')
+          .setDescription('You need admin permission to register other users.\n\nPlease use `!register + your game name` to register.\nFor example: `!register gamer123`')
+      ],
+      flags: 64
+    });
+  }
+
+  // 2. Validation
+  if (!gameName || gameName.length > 16 || /[^A-Za-z0-9]/.test(gameName)) {
+    await doReact('⚠️');
+    return doReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setTitle('Register error')
+          .setDescription(HOW_TO_REGISTER_TEXT)
+      ],
+      flags: 64
+    });
+  }
+
+  if (gameName.toLowerCase() === 'start') {
+    await doReact('⚠️');
+    return doReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setTitle('Register error')
+          .setDescription(`"\`${gameName}\`" is not your character name.\n\nPlease use \`!register + your game name\` to register.`)
+      ],
+      flags: 64
+    });
+  }
+
+  // 3. DB Checks
+  // A) Is target Discord already registered?
+  const user_already_registered = checkDiscordRegistration(targetId);
+  if (user_already_registered) {
+    await doReact('⚠️');
+    if (isSelfRegister) {
+      if (user_already_registered.game_name.toLowerCase() === gameName.toLowerCase()) {
+        return doReply({
+          embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`You are already registered as **${user_already_registered.game_name}**.`)]
+        });
+      }
+      return doReply({
+        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Your account is already linked to **${user_already_registered.game_name}**. You need to unregister first.`)]
+      });
+    } else {
+      return doReply({
+        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`The user <@${targetId}> is already registered as **${user_already_registered.game_name}**.`)]
+      });
+    }
+  }
+
+  // B) Is Game Name taken?
+  const duplicate_game_name = checkGameRegistration(gameName);
+  if (duplicate_game_name) {
+    return doReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setTitle('Register error')
+          .setDescription(`${duplicate_game_name.game_name} is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`)
+      ],
+      flags: 64
+    });
+  }
+
+  // 4. API Lookup
+  let apiJson;
+  try {
+    apiJson = await searchAlbion(gameName);
+  } catch (err) {
+    console.error('Albion search error', err);
+    await doReact('⚠️');
+    return doReply({
+      embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription('Error contacting Albion API — try again later.')],
+      flags: 64
+    });
+  }
+
+  const players = apiJson?.players || [];
+  const player = players.find((p) => p.Name.toLowerCase() === gameName.toLowerCase());
+
+  if (!player) {
+    await doReact('⚠️');
+    return doReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#E74C3C')
+          .setTitle('Register error')
+          .setDescription(`No players found with the name **${gameName}**`)
+          .setFooter({ text: `Make sure the game name is correct and the account is on the Europe server.` })
+      ],
+      flags: 64
+    });
+  }
+
+  // 5. Execution (DB & Discord)
+  let extraInfo = '';
+  const result = await addRegistrationToDB(targetId, player, executorId);
+
+  if (result.success) {
+    try {
+      const guildMember = await source.guild.members.fetch(targetId);
+
+      // Assign role
+      try {
+        if(VISITOR_ROLE_ID) await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${executorMember.user.tag}`);
+      } catch (err) {
+        console.error('Failed to assign visitor role:', err);
+      }
+
+      // Set Nickname
+      await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${executorId}`);
+    } catch (err) {
+      if (err.code === RESTJSONErrorCodes.MissingPermissions) {
+        extraInfo = `Failed to set nickname: ${err.message}`;
+      } else {
+        extraInfo = `Something went wrong though, check logs!`;
+        console.error('Failed to set nickname:', err);
+      }
+    }
+
+    // 6. Success Response & Button
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`quick_verify`)
+        .setLabel('Open Verification Ticket')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    await doReact('✅');
+    
+    // Send the message
+    const prompt = await doReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#2ECC71')
+          .setTitle('Register success')
+          .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
+      ],
+      components: isSelfRegister ? [confirmRow] : [] // Only show ticket button if self-registering
+    });
+
+    // 7. Collector Logic for Ticket (Only if self-register)
+    if (isSelfRegister) {
+      const collector = prompt.createMessageComponentCollector({
+        filter: i => i.user.id === executorId,
+        time: 30_000,
+        max: 1
+      });
+
+      collector.on('collect', async interaction => {
+        // Since we are creating a ticket which takes time, we defer/acknowledge
+        // Note: prompt is the message, interaction is the button click
+        await interaction.deferReply({ flags: 64 }).catch(err => console.error('Failed to defer reply:', err));
+
+        // Disable button
+        const disabledRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('quick_verify_progress')
+            .setLabel('Opening ticket...')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true)
+        );
+        await prompt.edit({ components: [disabledRow] }).catch(err => console.error('Failed to disable button:', err));
+
+        // Ticket Promise
+        const ticketPromise = new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            waitingTickets.delete(interaction.user.id);
+            reject(new Error('Ticket creation timeout after 15s'));
+          }, 15000);
+          waitingTickets.set(interaction.user.id, { resolve, reject, timeout });
+        });
+
+        // Trigger Ticket Bot
+        const yeekCommandsChannel = await client.channels.fetch(YEEK_COMMANDS_CHANNEL);
+        if (!yeekCommandsChannel) {
+          const data = waitingTickets.get(interaction.user.id);
+          if(data) { clearTimeout(data.timeout); data.reject(new Error('Commands channel not found')); waitingTickets.delete(interaction.user.id); }
+          return;
+        }
+
+        await yeekCommandsChannel.send({ content: `$new <@${interaction.user.id}> (for quick create ticket)` });
+
+        // Wait for result
+        try {
+          const channelId = await ticketPromise;
+          await interaction.followUp({ content: `Ticket is created for you, check it here <#${channelId}>`, flags: 64 });
+        } catch (error) {
+          console.error('Failed to get ticket:', error);
+          await interaction.followUp({ content: `Failed to get ticket information, if you don't see any tickets, open it here <#1383460322911715459>`, flags: 64 });
+        }
+
+        // Cleanup button
+        await prompt.edit({ components: [] }).catch(() => {});
+      });
+
+      collector.on('end', async () => {
+        // If expired and button still there, remove it
+        if(prompt.editable) await prompt.edit({ components: [] }).catch(() => {});
+      });
+    }
+
+  } else {
+    // DB Failed
+    await doReact('⚠️');
+    await doReply({
+      embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Failed: ${result.error}`)],
+      flags: 64
+    });
+  }
+}
+// --- SHARED REGISTER LOGIC END ---
+// --- SHARED UNREGISTER LOGIC START ---
+async function executeUnregisterLogic({ source, targetUser, executorMember }) {
+  // source: Message or ChatInputCommandInteraction
+  // targetUser: Discord User object
+  // executorMember: GuildMember object (the person running the command)
+
+  const isInteraction = source.isChatInputCommand?.();
+  const targetId = targetUser.id;
+  const executorId = executorMember.id;
+  const isSelfUnregister = targetId === executorId;
+  const callerIsAdmin = isAdminOrMod(executorMember);
+
+  // Helper wrappers for responses
+  const doReply = async (payload) => {
+    if (isInteraction) {
+      if (source.deferred || source.replied) {
+        return source.editReply(payload);
+      }
+      return source.reply({ ...payload, fetchReply: true });
+    } else {
+      return source.reply(payload);
+    }
+  };
+
+  // 1. Permission Check
+  // You can only unregister someone else if you are an Admin/Mod
+  if (!isSelfUnregister && !callerIsAdmin) {
+    return doReply({ content: 'You need admin permission to unregister other users.', flags: 64 });
+  }
+
+  // 2. DB Check
+  const existing = findByDiscordId(targetId);
+  if (!existing) {
+    return doReply({ content: 'No registration found for that user.', flags: 64 });
+  }
+
+  // 3. Prepare Confirmation
+  const uid = `${targetId}-${Date.now()}`;
+  const confirmRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`confirm-unregister-${uid}`)
+      .setLabel('Confirm Unregister')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`cancel-unregister-${uid}`)
+      .setLabel('Cancel')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const promptContent = `Are you sure you want to unregister **${existing.game_name}** from ${isSelfUnregister ? 'your' : `<@${targetId}>'s`} account? This will also purge all of ${isSelfUnregister ? 'your' : 'their'} roles!`;
+
+  // Send Prompt
+  const promptMessage = await doReply({
+    content: promptContent,
+    components: [confirmRow],
+    fetchReply: true 
+  });
+
+  // 4. Create Collector
+  // Allow the command executor OR an admin to click the button
+  const collector = promptMessage.createMessageComponentCollector({
+    filter: i => i.user.id === executorId || isAdminOrMod(i.member),
+    time: 30_000,
+    max: 1
+  });
+
+  let acted = false;
+
+  collector.on('collect', async interaction => {
+    // Ensure this interaction matches our specific customId
+    if (!interaction.customId.endsWith(uid)) return;
+
+    acted = true;
+    await interaction.deferUpdate().catch(() => {});
+
+    if (interaction.customId.startsWith('confirm-unregister-')) {
+      // --- PERFORM UNREGISTER ---
+      removeRegistrationByDiscordId(targetId);
+
+      try {
+        const guildMember = await source.guild.members.fetch(targetId);
+
+        // Purge roles
+        try {
+          // Setting roles to [] removes all roles (except @everyone and managed roles)
+          await guildMember.roles.set([], `Unregistered by ${executorMember.user.tag}`);
+        } catch (err) {
+          console.error('Failed to purge roles on unregister:', err);
+        }
+
+        // Reset Nickname
+        await guildMember.setNickname(null, `Unregistered by ${executorMember.user.tag}`);
+
+        // Edit prompt to show success
+        await promptMessage.edit({
+          content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account.`,
+          components: []
+        }).catch(() => {});
+
+      } catch (err) {
+        // Handle Missing Permissions specifically for feedback
+        if (err.code === RESTJSONErrorCodes.MissingPermissions) {
+          await promptMessage.edit({
+            content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account, but I was missing permissions to reset roles or nickname.`,
+            components: []
+          }).catch(() => {});
+        } else {
+          console.error('Unregister Execution Error:', err);
+          await promptMessage.edit({
+            content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account (but couldn't update Discord member data).`,
+            components: []
+          }).catch(() => {});
+        }
+      }
+
+    } else {
+      // --- CANCELLED ---
+      await promptMessage.edit({ content: 'Unregister cancelled.', components: [] }).catch(() => {});
+    }
+  });
+
+  collector.on('end', () => {
+    if (!acted) {
+      // Timeout
+      promptMessage.edit({ content: 'Unregister confirmation timed out.', components: [] }).catch(() => {});
+    }
+  });
+}
+// --- SHARED UNREGISTER LOGIC END ---
 
 client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isChatInputCommand()) {
@@ -1375,7 +1762,38 @@ I made this based on my own experience and what I know about the weapons. There 
   
         break;
       }
+      case 'register': {
+        // 1. Get Options
+        const gameName = interaction.options.getString('ign', true); // 'ign' must match your slash command builder
+        const targetUser = interaction.options.getUser('user') || interaction.user; // optional user for mods
 
+        // 2. Defer immediately as API checks take time
+        await interaction.deferReply();
+
+        // 3. Execute Shared Logic
+        await executeRegisterLogic({
+          source: interaction,
+          targetUser: targetUser,
+          gameName: gameName,
+          executorMember: interaction.member
+        });
+        break;
+      }
+      case 'unregister': {
+        const targetUser = interaction.options.getUser('user') || interaction.user;
+
+        // Note: We don't necessarily need to defer here if the logic sends a reply quickly, 
+        // but deferring is safer for DB checks. The shared logic handles deferred states.
+        // However, since we want a visible prompt (not ephemeral usually, or public), 
+        // standard reply works. If you prefer ephemeral for unregistering, pass flags: 64 to doReply in shared logic.
+        
+        await executeUnregisterLogic({
+          source: interaction,
+          targetUser: targetUser,
+          executorMember: interaction.member
+        });
+        break;
+      }
     }
 
 
@@ -2238,423 +2656,47 @@ client.on('messageCreate', async (message) => {
 
   // ---- UNREGISTER ----
   if (cmd === 'unregister') {
-  // supports: !unregister or !unregister @User
     const mention = message.mentions.users.first();
     const targetId = mention ? mention.id : message.author.id;
-
-    if (mention && !callerIsAdmin && targetId !== message.author.id) {
-      return message.reply('You need admin permission to unregister other users.');
-    }
     
-    if(!mention && raw.trim() !== '!unregister') {
+    // Validation: if user typed text but no mention, warn them? 
+    // The previous logic allowed "!unregister" (self) or "!unregister @User".
+    // If they type "!unregister somethingElse" it might be ambiguous, but sticking to existing logic:
+    if(!mention && message.content.trim() !== '!unregister') {
       return message.reply('Usage: `!unregister` or `!unregister @User`');
     }
 
-    const existing = findByDiscordId(targetId);
-    if (!existing) {
-      message.reply('No registration found for that user.');
-      return;
-    }
+    const targetUser = await client.users.fetch(targetId).catch(() => null);
+    if (!targetUser) return message.reply('User not found.');
 
-
-    // unique id to tie collector to this prompt
-    const uid = `${targetId}-${Date.now()}`;
-
-
-
-    const confirmRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`confirm-unregister-${uid}`)
-        .setLabel('Confirm Unregister')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId(`cancel-unregister-${uid}`)
-        .setLabel('Cancel')
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    // show the same message text you'd like but include the roles warning
-    const selfUnregister = targetId === message.author.id;
-    const prompt = await message.reply({
-      content: `Are you sure you want to unregister **${existing.game_name}** from ${selfUnregister ? 'your' : `<@${targetId}>'s`} account? This will also purge all of ${selfUnregister ? 'your' : 'their'} roles!`,
-      components: [confirmRow]
-    });
-
-    // Collector: allow either the command invoker or an admin to confirm
-    // replace existing collector + handlers with this (minimal change)
-    const collector = prompt.createMessageComponentCollector({
-      filter: i => i.user.id === message.author.id || isAdminOrMod(i.member),
-      time: 30_000,
-      max: 1
-    });
-
-    let acted = false;
-    collector.on('collect', async interaction => {
-      console.log('interaction', uid, interaction.customId);
-      
-      // ensure this button belongs to this prompt
-      if (!interaction.customId.endsWith(uid)) {
-        await interaction.reply({ content: 'This confirmation is not for you.', flags: 64 }).catch(() => {});
-        return;
-      }
-
-      // Use deferUpdate() to acknowledge the interaction quickly and avoid "already acknowledged" errors.
-      // Then edit the original prompt message (prompt.edit(...)) to remove buttons and show result.
-      if (interaction.customId.startsWith('confirm-unregister-')) {
-        acted = true;
-        await interaction.deferUpdate().catch(() => {});
-
-        // === ORIGINAL UNREGISTER ACTIONS START ===
-        removeRegistrationByDiscordId(targetId);
-
-        try {
-          const guildMember = await message.guild.members.fetch(targetId);
-
-          try {
-            await guildMember.roles.set([], `Unregistered by ${message.author.tag}`);
-          } catch (err) {
-            console.error('Failed to purge roles on unregister:', err);
-          }
-
-          await guildMember.setNickname(null, `Unregistered by ${message.author.tag}`);
-          await prompt.edit({
-            content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account`,
-            components: []
-          }).catch(() => {});
-        } catch (err) {
-          if(err.code === RESTJSONErrorCodes.MissingPermissions){
-            await prompt.edit({
-              content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account, but bot missing permissions to revert the nickname`,
-              components: []
-            }).catch(() => {});
-          } else {
-            console.error(err);
-            await prompt.edit({
-              content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account (something went wrong though)`,
-              components: []
-            }).catch(() => {});
-          }
-        }
-        // === ORIGINAL UNREGISTER ACTIONS END ===
-
-      } else {
-        // Cancel button pressed
-        acted = true;
-        await interaction.deferUpdate().catch(() => {}); // acknowledge
-        await prompt.edit({ content: 'Unregister cancelled.', components: [] }).catch(() => {});
-      }
-    });
-
-    collector.on('end', () => {
-      if (!acted) {
-        // timed out without a button press — keep original data intact
-        prompt.edit({ content: 'Unregister confirmation timed out and no changes were made.', components: [] }).catch(() => {});
-      }
+    await executeUnregisterLogic({
+      source: message,
+      targetUser: targetUser,
+      executorMember: message.member
     });
     return;
-
   }
 
   // ---- REGISTER ----
-
   if (cmd === 'register') {
-    // ---- Parse arguments ----
-    const { targetId: targetDiscordId, nameArg, mention } = parseRegisterArgs(message),
-          HOW_TO_REGISTER_TEXT = 'Please use `!register + your game name` to register.\nFor example: `!register gamer123` if your game name is `gamer123`';
+    // Parse args
+    const { targetId, nameArg } = parseRegisterArgs(message);
+    const targetUser = await client.users.fetch(targetId).catch(() => null);
+
+    if (!targetUser) {
+      return message.reply('Could not find that user.');
+    }
     
-    if (!nameArg) {
-      // return message.reply('Usage: `!register Amin` or `!register @User Amin`');
-      await message.react('⚠️').catch(() => {});
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription(HOW_TO_REGISTER_TEXT)
-        ]
-      });
-    }
-
-    // ---- Self vs Registering others ----
-    if (mention && !callerIsAdmin) {
-      await message.react('⚠️').catch(() => {});
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription('You need admin permission to register other users.\n\nPlease use `!register + your game name` to register.\nFor example: `!register gamer123` if your game name is `gamer123`')
-        ]
-      });
-    }
-
-    if (nameArg.length > 16 || /[^A-Za-z0-9]/.test(nameArg)) {
-      await message.react('⚠️').catch(() => {});
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription(HOW_TO_REGISTER_TEXT)
-        ]
-      });
-    }
-
-    // ---- PRE-API CHECKS ----
-
-    // 1) Is the target Discord account already registered?
-    const user_already_registered = checkDiscordRegistration(targetDiscordId);
-
-    const isSelfRegister = targetDiscordId === message.author.id;
-
-    if (user_already_registered) {
-      // Case A: self-registering user (people registering themselves)
-      if (isSelfRegister) {
-        if (user_already_registered.game_name.toLowerCase() === nameArg.toLowerCase()) {
-          await message.react('⚠️').catch(() => {});
-          return message.reply({
-            embeds: [
-              new EmbedBuilder()
-                .setColor('#E74C3C')
-                .setTitle('Register error')
-                .setDescription(`You are already registered as **${user_already_registered.game_name}**.`)
-            ]
-          });
-        }
-        await message.react('⚠️').catch(() => {});
-        return message.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#E74C3C')
-              .setTitle('Register error')
-              .setDescription(`Your account is already linked to **${user_already_registered.game_name}**. You need to unregister first if you want to change it.`)
-          ]
-        });
-      }
-
-      // Admin must unregister target first (no auto-overwrite)
-      await message.react('⚠️').catch(() => {});
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription(`The user <@${targetDiscordId}> is already registered as **${user_already_registered.game_name}**.`)
-        ]
-      });
-    }
-
-    // 2) Is the requested game name already taken by another Discord user?
-    const duplicate_game_name = checkGameRegistration(nameArg);
-    if (duplicate_game_name) {
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription(`${duplicate_game_name.game_name} is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`)
-        ]
-      });
-    }
-
-    if((nameArg.toLowerCase() === 'start')){
-      await message.react('⚠️').catch(() => {});
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription(`"\`${nameArg}\`" is not your character name.\n\nPlease use \`!register + your game name\` to register.\nFor example: \`!register gamer123\` if your game name is \`gamer123\``)
-        ]
-      });
-    }
-
-    // ---- API LOOKUP ----
-    let apiJson;
-    try {
-      apiJson = await searchAlbion(nameArg);
-    } catch (err) {
-      console.error('Albion search error', err);
-      await message.react('⚠️').catch(() => {});
-      return message.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#E74C3C')
-            .setTitle('Register error')
-            .setDescription('Error contacting Albion API — try again later.')
-        ]
-      });
-    }
-
-    const players = apiJson?.players || [];
-
-    // ---- Exact match ----
-    const player = players.find((p) => p.Name.toLowerCase() === nameArg.toLowerCase());
-    if (player) {
-      const invokerId = (message.author && message.author.id) || (message.user && message.user.id);
-      let extraInfo = '';
-      const result = await addRegistrationToDB(targetDiscordId, player, invokerId);
-      if (result.success) {
-        // after DB insertion succeeded
-        try {
-          const guildMember = await message.guild.members.fetch(targetDiscordId);
-
-          // assign visitor role after successful registration
-          try {
-            await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${message.author.tag}`);
-          } catch (err) {
-            console.error('Failed to assign visitor role to ' + guildMember.user.tag + ':', err);
-          }
-
-          await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${invokerId}`);
-        } catch (err) {
-          if(err.code === RESTJSONErrorCodes.MissingPermissions){
-            extraInfo = `Failed to set nickname: ${err.message}`;
-          } else {
-            extraInfo = `Something went wrong though, check logs!`;
-            console.error('Failed to set nickname to ' + player.Name + ': ', err);
-          }
-        }
-      
-        const confirmRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`quick_verify`)
-            .setLabel('Open Verification Ticket')
-            .setStyle(ButtonStyle.Success)
-        );
-
-        await message.react('👍').catch(() => {});
-        const prompt = await message.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#2ECC71')
-              .setTitle('Register success')
-              .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
-          ],
-          components: isSelfRegister ? [confirmRow] : []
-        });
-        
-        if(isSelfRegister){
-          // Collector: allow either the command invoker or an admin to confirm
-          // replace existing collector + handlers with this (minimal change)
-          const collector = prompt.createMessageComponentCollector({
-            filter: i => i.user.id === message.author.id,
-            time: 30_000,
-            max: 1
-          });
-        
-          // let acted = false;
-          collector.on('collect', async interaction => {
-            // acted = true;
-
-            // console.log('collect interaction');
-            await interaction.deferReply({ flags: 64 }).catch(err => {
-              console.error('Failed to defer reply:', err);
-            });
-
-          
-            // 2️⃣ Disable button immediately
-            const disabledRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId('quick_verify_progress')
-                .setLabel('Opening ticket...')
-                .setStyle(ButtonStyle.Secondary) // Gray color
-                .setDisabled(true) // ⭐ Makes it unclickable
-            );
-            await prompt.edit({ components: [disabledRow] }).catch(err => {
-              console.error('Failed to edit prompt (disable button):', err);
-            });
-  
-
-            // 1️⃣ create the promise FIRST
-            const ticketPromise = new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => {
-                waitingTickets.delete(interaction.user.id);
-                reject(new Error('Ticket creation timeout after 15s'));
-              }, 15000);
-  
-              waitingTickets.set(interaction.user.id, { resolve, reject, timeout });
-            });
-
-            // 2️⃣ trigger TicketTool (this creates the channel)
-            const yeekCommandsChannel = await client.channels.fetch(YEEK_COMMANDS_CHANNEL);
-            if (!yeekCommandsChannel) {
-              const data = waitingTickets.get(interaction.user.id);
-              if (data) {
-                clearTimeout(data.timeout);
-                data.reject(new Error('Commands channel not found'));
-                waitingTickets.delete(interaction.user.id);
-              }
-              return;
-            }
-            await yeekCommandsChannel.send({
-              content: `$new <@${interaction.user.id}> (for quick create ticket)`
-            });
-
-
-            // 3️⃣ NOW wait for channelCreate to resolve it
-            try {
-              const channelId = await ticketPromise;
-              console.log('Quick Ticket created:', channelId);
-
-              // ✅ Use followUp() instead of deferReply()
-              await interaction.followUp({ 
-                content: `Ticket is created for you, check it here <#${channelId}>`, 
-                flags: 64
-              });
-    
-            } catch (error) {
-              console.error('Failed to get ticket:', error);
-
-              // ✅ Use followUp() instead of deferReply()
-              await interaction.followUp({
-                content: `Failed to get ticket information, if you don't see any tickets, open it here <#1383460322911715459>`,
-                flags: 64
-              });
-
-            }
-          
-            // remove button
-            await prompt.edit({ components: [] }).catch(err => {
-              console.error('Failed to remove button:', err);
-            });
-          });
-
-          collector.on('end', async () => {
-            await prompt.edit({ components: [] }).catch(err => {
-              console.error('Failed to remove button:', err);
-            });
-          });
-        }
-
-
-
-      } else {
-        await message.react('⚠️').catch(err => {
-          console.error('Failed to react:', err);
-        });
-        await message.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#E74C3C')
-              .setTitle('Register error')
-              .setDescription(`Failed: ${result.error}`)
-          ]
-        });
-      }
-      return;
-    }
-    await message.react('⚠️').catch(() => {});
-    return message.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor('#E74C3C')
-          .setTitle('Register error')
-          .setDescription(`No players found with the name **${nameArg}**`)
-          .setFooter({ text: `Make sure the game name is correct and the account is on the Europe server.` })
-      ]
+    // Execute Shared Logic
+    // Note: We don't defer here because message commands don't require it, 
+    // but the shared logic handles message.reply vs interaction.editReply automatically.
+    await executeRegisterLogic({
+      source: message,
+      targetUser: targetUser,
+      gameName: nameArg, // The function checks if nameArg is valid/null
+      executorMember: message.member
     });
-
+    return; 
   }
 
   // ---- REGISTERINFO ----
