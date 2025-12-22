@@ -395,13 +395,34 @@ function checkGameRegistration(gameName) {
   return findByGameName(gameName); // returns row or undefined
 }
 
+
 // parse args: returns { targetId, nameArg, mention }
 function parseRegisterArgs(message) {
-  const mention = message.mentions.users.first();
-  const parts = message.content.trim().split(/\s+/).slice(1); // after command
-  if (mention) parts.shift(); // remove mention token
+  const parts = message.content.trim().split(/\s+/).slice(1); // Get words after command
+  let targetId = message.author.id;
+  let mention = null;
+
+  // Regex to check if the FIRST argument is strictly a user mention format (<@123...> or <@!123...>)
+  const mentionRegex = /^<@!?(\d+)>$/;
+
+  if (parts.length > 0) {
+    const match = parts[0].match(mentionRegex);
+    
+    // If the first word is a mention, we assume they want to register that user
+    if (match) {
+      const extractedId = match[1];
+      // Verify this ID actually exists in the message mentions collection
+      const mentionedUser = message.mentions.users.get(extractedId);
+      
+      if (mentionedUser) {
+        mention = mentionedUser;
+        targetId = extractedId;
+        parts.shift(); // Remove the mention from the arguments so the rest is the name
+      }
+    }
+  }
+
   const nameArg = parts.join(' ').trim();
-  const targetId = mention ? mention.id : message.author.id;
   return { targetId, nameArg, mention };
 }
 
@@ -1051,7 +1072,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
         new EmbedBuilder()
           .setColor('#E74C3C')
           .setTitle('Register error')
-          .setDescription(`"\`${gameName}\`" is not your character name.\n\nPlease use \`!register + your game name\` to register.`)
+          .setDescription(`"\`${gameName}\`" is not your game name.\n\nPlease use \`!register + your game name\` to register.`)
       ],
       flags: 64
     });
@@ -1065,11 +1086,11 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
     if (isSelfRegister) {
       if (user_already_registered.game_name.toLowerCase() === gameName.toLowerCase()) {
         return doReply({
-          embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`You are already registered as **${user_already_registered.game_name}**.`)]
+          embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(`You are already registered as **${user_already_registered.game_name}**, you don't need to do it again.`)]
         });
       }
       return doReply({
-        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Your account is already linked to **${user_already_registered.game_name}**. You need to unregister first.`)]
+        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Your account is linked to **${user_already_registered.game_name}**. If you want to change it, use the command \`/Unregister\` first`)]
       });
     } else {
       return doReply({
@@ -2656,14 +2677,22 @@ client.on('messageCreate', async (message) => {
 
   // ---- UNREGISTER ----
   if (cmd === 'unregister') {
-    const mention = message.mentions.users.first();
-    const targetId = mention ? mention.id : message.author.id;
-    
-    // Validation: if user typed text but no mention, warn them? 
-    // The previous logic allowed "!unregister" (self) or "!unregister @User".
-    // If they type "!unregister somethingElse" it might be ambiguous, but sticking to existing logic:
-    if(!mention && message.content.trim() !== '!unregister') {
-      return message.reply('Usage: `!unregister` or `!unregister @User`');
+    const parts = message.content.trim().split(/\s+/).slice(1);
+    let targetId = message.author.id;
+
+    // Check if there are arguments
+    if (parts.length > 0) {
+      // Regex to ensure the argument is explicitly a mention <@ID>
+      const mentionRegex = /^<@!?(\d+)>$/;
+      const match = parts[0].match(mentionRegex);
+
+      if (match) {
+        // If the first word is a mention, use that ID
+        targetId = match[1];
+      } else {
+        // If there is text but it's not a mention (e.g. "!unregister junk"), show usage
+        return message.reply('Usage: `!unregister` or `!unregister @User`');
+      }
     }
 
     const targetUser = await client.users.fetch(targetId).catch(() => null);
