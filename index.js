@@ -200,7 +200,7 @@ function buildCompMessageBody(comp) {
 
     // Build the line components
     const userMention = slot.playerId ? ` <@${slot.playerId}>` : '';
-    const formattedComment = comment ? ` _~${comment}_` : '';
+    const formattedComment = comment ? ` _~${comment.replaceAll('_','\\_')}_` : '';
 
     // Combine: roleIndex. roleName [@playerId] [~comment]
     lines.push(`${roleIndex}. ${roleName}${userMention}${formattedComment}`);
