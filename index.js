@@ -2559,7 +2559,7 @@ client.on('channelCreate', async (channel) => {
 3. Can you join voice chat to hear calls? (no need to talk)
 ### Send the following screenshots:
 1. Your character stats
-2. Your personal faction warfare overview
+2. Your faction warfare overview (show your name)
 `)
         .setImage('https://i.imgur.com/ZVoVlcC.png')
         .setFooter(
