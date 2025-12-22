@@ -1002,7 +1002,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
       if (source.deferred || source.replied) {
         return source.editReply(payload);
       }
-      return source.reply({ ...payload, fetchReply: true });
+      return source.reply({ ...payload, withResponse: true });
     } else {
       return source.reply(payload);
     }
@@ -1258,7 +1258,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
       if (source.deferred || source.replied) {
         return source.editReply(payload);
       }
-      return source.reply({ ...payload, fetchReply: true });
+      return source.reply({ ...payload, withResponse: true });
     } else {
       return source.reply(payload);
     }
@@ -1295,7 +1295,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
   const promptMessage = await doReply({
     content: promptContent,
     components: [confirmRow],
-    fetchReply: true 
+    withResponse: true 
   });
 
   // 4. Create Collector
