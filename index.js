@@ -1019,16 +1019,17 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
   // Helper wrappers to unify Message vs Interaction responses
   const doReply = async (payload) => {
     if (isInteraction) {
-      // For interaction, we assume it's already deferred or we followUp
       if (source.deferred || source.replied) {
-        return source.editReply(payload);
+        return await source.editReply(payload);
       }
-      return source.reply({ ...payload, withResponse: true });
+      // Reply first, then fetch the message explicitly
+      await source.reply(payload);
+      return await source.fetchReply();
     } else {
-      return source.reply(payload);
+      return await source.reply(payload);
     }
   };
-
+  
   const doReact = async (emoji) => {
     if (!isInteraction) {
       await source.react(emoji).catch(() => {});
@@ -1184,7 +1185,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
       embeds: [
         new EmbedBuilder()
           .setColor('#2ECC71')
-          .setTitle('Register success')
+          .setTitle('Registration Successful')
           .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
       ],
       components: isSelfRegister ? [confirmRow] : [] // Only show ticket button if self-registering
@@ -1192,6 +1193,9 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
 
     // 7. Collector Logic for Ticket (Only if self-register)
     if (isSelfRegister) {
+      // Safety check: ensure prompt is a valid Message object before creating collector
+      if (!prompt) return;
+
       const collector = prompt.createMessageComponentCollector({
         filter: i => i.user.id === executorId,
         time: 30_000,
@@ -1200,7 +1204,6 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
 
       collector.on('collect', async interaction => {
         // Since we are creating a ticket which takes time, we defer/acknowledge
-        // Note: prompt is the message, interaction is the button click
         await interaction.deferReply({ flags: 64 }).catch(err => console.error('Failed to defer reply:', err));
 
         // Disable button
@@ -1277,16 +1280,21 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
   const doReply = async (payload) => {
     if (isInteraction) {
       if (source.deferred || source.replied) {
-        return source.editReply(payload);
+        // editReply returns the Message object directly
+        return await source.editReply(payload);
       }
-      return source.reply({ ...payload, withResponse: true });
+      // 1. Send the reply (returns InteractionResponse or void)
+      await source.reply(payload);
+      // 2. Fetch the actual Message object explicitly
+      // This is the "safe" way that fixes the "is not a function" error
+      return await source.fetchReply(); 
     } else {
-      return source.reply(payload);
+      // Message.reply returns the Message object directly
+      return await source.reply(payload);
     }
   };
 
   // 1. Permission Check
-  // You can only unregister someone else if you are an Admin/Mod
   if (!isSelfUnregister && !callerIsAdmin) {
     return doReply({ content: 'You need admin permission to unregister other users.', flags: 64 });
   }
@@ -1315,12 +1323,16 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
   // Send Prompt
   const promptMessage = await doReply({
     content: promptContent,
-    components: [confirmRow],
-    withResponse: true 
+    components: [confirmRow]
   });
 
+  // Safety check: ensure we actually got a message back
+  if (!promptMessage || typeof promptMessage.createMessageComponentCollector !== 'function') {
+    console.error('Failed to retrieve prompt message object.');
+    return; 
+  }
+
   // 4. Create Collector
-  // Allow the command executor OR an admin to click the button
   const collector = promptMessage.createMessageComponentCollector({
     filter: i => i.user.id === executorId || isAdminOrMod(i.member),
     time: 30_000,
@@ -1330,7 +1342,6 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
   let acted = false;
 
   collector.on('collect', async interaction => {
-    // Ensure this interaction matches our specific customId
     if (!interaction.customId.endsWith(uid)) return;
 
     acted = true;
@@ -1342,35 +1353,50 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
 
       try {
         const guildMember = await source.guild.members.fetch(targetId);
-
         // Purge roles
         try {
-          // Setting roles to [] removes all roles (except @everyone and managed roles)
           await guildMember.roles.set([], `Unregistered by ${executorMember.user.tag}`);
         } catch (err) {
           console.error('Failed to purge roles on unregister:', err);
         }
-
         // Reset Nickname
         await guildMember.setNickname(null, `Unregistered by ${executorMember.user.tag}`);
 
-        // Edit prompt to show success
         await promptMessage.edit({
-          content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account.`,
+          content: ``,
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2ECC71')
+              .setTitle('Unregistration Successful')
+              .setDescription(`The name ${existing.game_name} is no longer linked to <@${targetId}>'s account.`)
+          ],
           components: []
-        }).catch(() => {});
+        }).catch(err => {
+          console.error('Failed to edit reply:', err);
+        });
 
       } catch (err) {
-        // Handle Missing Permissions specifically for feedback
         if (err.code === RESTJSONErrorCodes.MissingPermissions) {
           await promptMessage.edit({
-            content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account, but I was missing permissions to reset roles or nickname.`,
+            content: ``,
+            embeds: [
+              new EmbedBuilder()
+                .setColor('#2ECC71')
+                .setTitle('Unregistration Successful')
+                .setDescription(`The name ${existing.game_name} is no longer linked to <@${targetId}>'s account, but I was missing permissions to reset roles or nickname.`)
+            ],
             components: []
           }).catch(() => {});
         } else {
           console.error('Unregister Execution Error:', err);
           await promptMessage.edit({
-            content: `The name ${existing.game_name} is no longer linked to <@${targetId}>'s account (but couldn't update Discord member data).`,
+            content: '',
+            embeds: [
+              new EmbedBuilder()
+                .setColor('#2ECC71')
+                .setTitle('Unregistration Successful')
+                .setDescription(`The name ${existing.game_name} is no longer linked to <@${targetId}>'s account (but couldn't update Discord member data).`)
+            ],
             components: []
           }).catch(() => {});
         }
@@ -1384,7 +1410,6 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
 
   collector.on('end', () => {
     if (!acted) {
-      // Timeout
       promptMessage.edit({ content: 'Unregister confirmation timed out.', components: [] }).catch(() => {});
     }
   });
