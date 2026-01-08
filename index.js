@@ -1844,7 +1844,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
 
   } else if (interaction.isUserContextMenuCommand()) {
-    if (interaction.commandName === 'Verify') {
+    if (interaction.commandName === 'Give Member Access') {
       await interaction.deferReply({ flags: 64 }).catch(err => {
         console.error('Failed to defer reply:', err);
       });
@@ -1879,6 +1879,43 @@ I made this based on my own experience and what I know about the weapons. There 
         console.error(err);
         await interaction.followUp({ content: '❌ Failed to give roles.', flags: 64 });
       }
+      return;
+    } else if (interaction.commandName === 'Give Intern roles') {
+      await interaction.deferReply({ flags: 64 }).catch(err => {
+        console.error('Failed to defer reply:', err);
+      });
+      try {
+
+        const allowedRoles = [
+          '992470540717654037', // admin in jmboy's server
+          '1265029315532161176', // cheiveman
+          '1247895646929817730' // highlord
+        ]; // role IDs
+        const memberRoles = interaction.member.roles;
+
+        if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
+          await interaction.followUp({ content: 'You don\'t have permission to use this command.', flags: 64 });
+          return;
+        }
+
+        const member = await interaction.guild.members.fetch(interaction.targetId);
+
+        // roles to add
+        const roleIds = [
+          '1247887205133713438', // highlander
+          '1411030502768508959' // internn
+        ];
+
+        for (const roleId of roleIds) {
+          await member.roles.add(roleId);
+        }
+
+        await interaction.followUp({ content: `Intern roles are given to <@${member.id}>`, flags: 64 });
+      } catch (err) {
+        console.error(err);
+        await interaction.followUp({ content: '❌ Failed to give roles.', flags: 64 });
+      }
+      return;
     } else if (interaction.commandName === 'Update name') {
 
       const modal = new ModalBuilder()
