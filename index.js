@@ -3047,14 +3047,15 @@ client.on('messageCreate', async (message) => {
       num = num * 10 + (code - 48); // Manual parsing
     }
 
+    // Guard 5: Comp lookup (most expensive, do last)
+    const comp = getCompByThreadId(message.channel.id);
+    if (!comp) return;
+
     if (num < 1 || num > 60) {
       await message.react('❌').catch(() => {});
       await message.reply('Invalid role number.').catch(() => {});
       return;
     }
-    // Guard 5: Comp lookup (most expensive, do last)
-    const comp = getCompByThreadId(message.channel.id);
-    if (!comp) return;
 
     const compId = comp.id,
           parsed_data = {
