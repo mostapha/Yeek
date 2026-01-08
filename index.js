@@ -1871,7 +1871,9 @@ I made this based on my own experience and what I know about the weapons. There 
         ];
 
         for (const roleId of roleIds) {
-          await member.roles.add(roleId);
+          await member.roles.add(roleId, `Given by ${interaction.user.tag}`).catch(err => {
+            console.error(`Failed to add role ${roleId} to ${member.user.tag}:`, err);
+          });
         }
 
         await interaction.followUp({ content: `Roles are given to <@${member.id}>`, flags: 64 });
@@ -1907,7 +1909,9 @@ I made this based on my own experience and what I know about the weapons. There 
         ];
 
         for (const roleId of roleIds) {
-          await member.roles.add(roleId);
+          await member.roles.add(roleId, `Given by ${interaction.user.tag}`).catch(err => {
+            console.error(`Failed to add role ${roleId} to ${member.user.tag}:`, err);
+          });
         }
 
         await interaction.followUp({ content: `Intern roles are given to <@${member.id}>`, flags: 64 });
