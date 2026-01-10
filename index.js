@@ -2641,12 +2641,12 @@ client.on('channelCreate', async (channel) => {
         .setTitle('Checklist')
         .setDescription(`
 ### Answer these questions:
-1. Do you agree to play **only** for Martlock?
-2. Do you understand English?
+1. Do you understand English?
+2. Do you agree to play **only** for Martlock?
 3. Can you join voice chat to hear calls? (no need to talk)
-### Send the following screenshots:
-1. Your character stats
-2. Your faction warfare overview (show your name)
+### Send 2 screenshots:
+1. Character stats
+2. Faction warfare overview **(your name should be visible)**
 `)
         .setImage('https://i.imgur.com/ZVoVlcC.png')
         .setFooter(
