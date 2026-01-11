@@ -19,8 +19,12 @@ config();
 const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',') // allowed channels for non mods/admins
 const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
 const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
-const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID;
-const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID;
+
+const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID,
+      MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
+      EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
+      INTERN_ROLE_ID = process.env.INTERN_ROLE_ID;
+
 const YEEK_COMMANDS_CHANNEL = process.env.YEEK_COMMANDS_CHANNEL;
 
 // Albion API base
@@ -1844,77 +1848,44 @@ I made this based on my own experience and what I know about the weapons. There 
 
 
   } else if (interaction.isUserContextMenuCommand()) {
-    if (interaction.commandName === 'Give Member Access') {
+    if (interaction.commandName.startsWith('Give: ')){
       await interaction.deferReply({ flags: 64 }).catch(err => {
         console.error('Failed to defer reply:', err);
       });
+        
+      const member_roles_ids = [MEMBER_ROLE_ID, EOLMEMBER_ROLE_ID],
+            intern_roles_ids = [INTERN_ROLE_ID, MEMBER_ROLE_ID],
+            intern_and_member_roles_ids = [INTERN_ROLE_ID, MEMBER_ROLE_ID, EOLMEMBER_ROLE_ID];
+
       try {
-
-        const allowedRoles = [
-          '992470540717654037', // admin in jmboy's server
-          '1265029315532161176', // cheiveman
-          '1247895646929817730' // highlord
-        ]; // role IDs
-        const memberRoles = interaction.member.roles;
-
-        if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
-          await interaction.followUp({ content: 'You don\'t have permission to use this command.', flags: 64 });
-          return;
-        }
-
         const member = await interaction.guild.members.fetch(interaction.targetId);
-
-        // roles to add
-        const roleIds = [
-          '1247887205133713438', // highlander
-          '1338515855709044757' // eolgard
-        ];
-
-        for (const roleId of roleIds) {
-          await member.roles.add(roleId, `Given by ${interaction.user.tag}`).catch(err => {
-            console.error(`Failed to add role ${roleId} to ${member.user.tag}:`, err);
-          });
+        switch(interaction.commandName){
+          case 'Give: Member': {
+            await member.roles.add(member_roles_ids, `Given member roles by ${interaction.user.tag}`).catch(err => {
+              console.error(`Failed to give full member access roles to ${member.user.tag}:`, err);
+            });
+            await interaction.followUp({ content: `${member_roles_ids.map(id => `<@&${id}>`).join(' ')} roles are given to <@${member.id}>`, flags: 64 });
+            return;
+          }
+          case 'Give: Intern': {
+            await member.roles.add(intern_roles_ids, `Given Intern roles by ${interaction.user.tag}`).catch(err => {
+              console.error(`Failed to give Intern roles to ${member.user.tag}:`, err);
+            });
+            await interaction.followUp({ content: `${intern_roles_ids.map(id => `<@&${id}>`).join(' ')} roles are given to <@${member.id}>`, flags: 64 });
+            return;
+          }
+          case 'Give: Intern Member': {
+            await member.roles.add(intern_and_member_roles_ids, `Given Intern Member roles by ${interaction.user.tag}`).catch(err => {
+              console.error(`Failed to give Member + Intern roles to ${member.user.tag}:`, err);
+            });
+            await interaction.followUp({ content: `${intern_and_member_roles_ids.map(id => `<@&${id}>`).join(' ')} roles are given to <@${member.id}>`, flags: 64 });
+            return;
+          }
+          default: {
+            await interaction.followUp({ content: `Unrecognized command.`, flags: 64 });
+            return;
+          }
         }
-
-        await interaction.followUp({ content: `Roles are given to <@${member.id}>`, flags: 64 });
-      } catch (err) {
-        console.error(err);
-        await interaction.followUp({ content: '❌ Failed to give roles.', flags: 64 });
-      }
-      return;
-    } else if (interaction.commandName === 'Give Intern roles') {
-      await interaction.deferReply({ flags: 64 }).catch(err => {
-        console.error('Failed to defer reply:', err);
-      });
-      try {
-
-        const allowedRoles = [
-          '992470540717654037', // admin in jmboy's server
-          '1265029315532161176', // cheiveman
-          '1247895646929817730' // highlord
-        ]; // role IDs
-        const memberRoles = interaction.member.roles;
-
-        if (!memberRoles.cache.some(role => allowedRoles.includes(role.id))) {
-          await interaction.followUp({ content: 'You don\'t have permission to use this command.', flags: 64 });
-          return;
-        }
-
-        const member = await interaction.guild.members.fetch(interaction.targetId);
-
-        // roles to add
-        const roleIds = [
-          '1247887205133713438', // highlander
-          '1411030502768508959' // internn
-        ];
-
-        for (const roleId of roleIds) {
-          await member.roles.add(roleId, `Given by ${interaction.user.tag}`).catch(err => {
-            console.error(`Failed to add role ${roleId} to ${member.user.tag}:`, err);
-          });
-        }
-
-        await interaction.followUp({ content: `Intern roles are given to <@${member.id}>`, flags: 64 });
       } catch (err) {
         console.error(err);
         await interaction.followUp({ content: '❌ Failed to give roles.', flags: 64 });
@@ -1964,8 +1935,6 @@ I made this based on my own experience and what I know about the weapons. There 
       await interaction.showModal(modal);
 
     }
-
-
   } else if (interaction.isMessageContextMenuCommand()) {
      
     if (interaction.commandName === 'Check Comp') {

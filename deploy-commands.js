@@ -11,13 +11,19 @@ const commands = [
     .toJSON(),
 
   new ContextMenuCommandBuilder()
-    .setName('Give Member Access')               // This will show in right-click menu
+    .setName('Give: Member')               // This will show in right-click menu
     .setType(ApplicationCommandType.User)
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .toJSON(),
 
   new ContextMenuCommandBuilder()
-    .setName('Give Intern roles')               // This will show in right-click menu
+    .setName('Give: Intern')               // This will show in right-click menu
+    .setType(ApplicationCommandType.User)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .toJSON(),
+
+  new ContextMenuCommandBuilder()
+    .setName('Give: Intern Member')               // This will show in right-click menu
     .setType(ApplicationCommandType.User)
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .toJSON(),
