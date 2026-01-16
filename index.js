@@ -1812,6 +1812,95 @@ I made this based on my own experience and what I know about the weapons. There 
   
         break;
       }
+      // START NEW COMMAND HANDLER
+      case 'comp_members_addrole': {
+        await interaction.deferReply({ flags: 64 }); // Ephemeral defer
+
+        // 1. Thread & Comp Context Check
+        if (!interaction.channel || !interaction.channel.isThread()) {
+          await interaction.editReply({ content: 'This command must be used inside the comp thread.' });
+          return;
+        }
+
+        const comp = getCompByThreadId(interaction.channel.id);
+        if (!comp) {
+          await interaction.editReply({ content: 'This thread is not linked to a comp.' });
+          return;
+        }
+
+        // 2. Permission Check
+        // Allow: Super Admin
+        const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
+
+        if (!isSuperAdmin) {
+          await interaction.editReply({ content: 'Only the super admin can use this command.' });
+          return;
+        }
+
+        // 3. Get Role and Targets
+        const targetRole = interaction.options.getRole('role', true);
+        
+        // Safety check: Don't allow giving dangerous permissions if logic fails elsewhere, 
+        // though Discord handles hierarchy, it's good to be safe.
+        if (targetRole.managed || targetRole.position >= interaction.guild.members.me.roles.highest.position) {
+          await interaction.editReply({ content: `I cannot assign the role ${targetRole} because it is higher than or equal to my highest role.` });
+          return;
+        }
+
+        const signedUpUserIds = new Set(
+          comp.slots
+            .filter(slot => slot.playerId)
+            .map(slot => slot.playerId)
+        );
+
+        if (signedUpUserIds.size === 0) {
+          await interaction.editReply({ content: 'No users are currently signed up in this comp.' });
+          return;
+        }
+
+        // 4. Assign Roles
+        let successCount = 0;
+        let failCount = 0;
+        const failedUsers = [];
+
+        await interaction.editReply({ content: `Assigning ${targetRole} to ${signedUpUserIds.size} users...` });
+
+        for (const userId of signedUpUserIds) {
+          try {
+            const member = await interaction.guild.members.fetch(userId).catch(() => null);
+            if (!member) {
+              failCount++;
+              continue; // Member left guild
+            }
+
+            if (member.roles.cache.has(targetRole.id)) {
+              // Already has role, count as success effectively
+              successCount++;
+            } else {
+              await member.roles.add(targetRole, `Comp bulk add by ${interaction.user.tag}`);
+              successCount++;
+            }
+          } catch (err) {
+            console.error(`Failed to add role to ${userId}`, err);
+            failCount++;
+            failedUsers.push(`<@${userId}>`);
+          }
+        }
+
+        // 5. Report Results
+        let msg = `✅ **Operation Complete**\nRole ${targetRole} assigned to **${successCount}** users.`;
+        
+        if (failCount > 0) {
+          msg += `\n⚠️ Failed to assign to **${failCount}** users.`;
+          if (failedUsers.length > 0) {
+            msg += `\nFailed users (check hierarchy or bots): ${failedUsers.join(', ')}`;
+          }
+        }
+
+        await interaction.editReply({ content: msg });
+        break;
+      }
+
       case 'register': {
         // 1. Get Options
         const gameName = interaction.options.getString('ign', true); // 'ign' must match your slash command builder

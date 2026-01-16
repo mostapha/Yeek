@@ -109,6 +109,17 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
     .toJSON(),
 
+  new SlashCommandBuilder()
+    .setName('comp_members_addrole')
+    .setDescription('Add a specific role to everyone signed up in this comp')
+    .addRoleOption(option => 
+      option.setName('role')
+        .setDescription('The role to assign')
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .toJSON(),
+    
   // Example for your deploy script
   new SlashCommandBuilder()
     .setName('register')
