@@ -1980,7 +1980,7 @@ I made this based on my own experience and what I know about the weapons. There 
         const userRow = findByDiscordId(interaction.user.id);
         if (!userRow) {
           return interaction.reply({ 
-            content: `❌ You are not registered with Yeek bot. Please register again using <#${YEEK_COMMANDS_CHANNEL}> first.`, 
+            content: `❌ You are not registered with Yeek bot. Please register again using <#1247939976667205633> first.`, 
             ephemeral: true 
           });
         }
@@ -2951,7 +2951,7 @@ client.on('channelCreate', async (channel) => {
 
 const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link','kb', 'modkb', 'registerhelp']),
       VISITOR_ROLE_ID = process.env.VISITOR_ROLE_ID,
-      MESSAGE_USE_IN_ALLOWED_CHANNELS = `Please use register commands in the https://discord.com/channels/1247740449959968870/1247939976667205633 or https://discord.com/channels/1247740449959968870/1275402208845893644 channel.`;
+      MESSAGE_USE_IN_ALLOWED_CHANNELS = `Please use register commands in the <#1247939976667205633> or <#1275402208845893644> channel.`;
 
 
 client.on('messageCreate', async (message) => {
