@@ -23,7 +23,8 @@ const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
 const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID,
       MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
       EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
-      INTERN_ROLE_ID = process.env.INTERN_ROLE_ID;
+      INTERN_ROLE_ID = process.env.INTERN_ROLE_ID,
+      HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID;
 
 const YEEK_COMMANDS_CHANNEL = process.env.YEEK_COMMANDS_CHANNEL;
 
@@ -1152,9 +1153,14 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
   let extraInfo = '';
   const result = await addRegistrationToDB(targetId, player, executorId);
 
+  
+  let hasMemberRoles;
   if (result.success) {
     try {
       const guildMember = await source.guild.members.fetch(targetId);
+
+      // update hasMemberRoles
+      hasMemberRoles = guildMember.roles.cache.has(MEMBER_ROLE_ID) && guildMember.roles.cache.has(EOLMEMBER_ROLE_ID);
 
       // Assign role
       try {
@@ -1192,11 +1198,11 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
           .setTitle('Registration Successful')
           .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
       ],
-      components: isSelfRegister ? [confirmRow] : [] // Only show ticket button if self-registering
+      components: (isSelfRegister && !hasMemberRoles) ? [confirmRow] : [] // Only show ticket button if self-registering
     });
 
     // 7. Collector Logic for Ticket (Only if self-register)
-    if (isSelfRegister) {
+    if (isSelfRegister && !hasMemberRoles) {
       // Safety check: ensure prompt is a valid Message object before creating collector
       if (!prompt) return;
 
@@ -1419,6 +1425,41 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
   });
 }
 // --- SHARED UNREGISTER LOGIC END ---
+
+// --- HELPER FUNCTIONS ---
+
+// 1. Fetch Albion Data (Europe)
+async function getAlbionPlayerData(playerId) {
+  try {
+    const response = await fetch(`https://gameinfo-ams.albiononline.com/api/gameinfo/players/${playerId}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error('Albion API Error:', error);
+    return null;
+  }
+}
+
+// 2. Build Nickname String
+function buildNicknameWithTag(tag, ign, suffix) {
+  let nick = '';
+  if (tag) nick += `[${tag}] `;
+  nick += ign;
+  if (suffix) nick += ` (${suffix})`;
+  return nick.substring(0, 32); // Discord max length
+}
+
+// 3. Extract Current Info from Discord Nickname
+function parseCurrentNick(nickname) {
+  // Looks for: [TAG] IGN (Suffix)
+  const suffixMatch = nickname.match(/\(([^)]+)\)$/); // Content inside last parenthesis
+  const tagMatch = nickname.match(/^\[(.*?)\]/);      // Content inside first brackets
+
+  return {
+    suffix: suffixMatch ? suffixMatch[1] : null,
+    tag: tagMatch ? tagMatch[1] : null
+  };
+}
 
 client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isChatInputCommand()) {
@@ -1933,6 +1974,176 @@ I made this based on my own experience and what I know about the weapons. There 
         });
         break;
       }
+
+      case 'update_name': {
+        // 1. Check Registration
+        const userRow = findByDiscordId(interaction.user.id);
+        if (!userRow) {
+          return interaction.reply({ 
+            content: `❌ You are not registered with Yeek bot. Please register again using <#${YEEK_COMMANDS_CHANNEL}> first.`, 
+            ephemeral: true 
+          });
+        }
+
+        // 2. Prepare Embed & Buttons
+        const embed = new EmbedBuilder()
+          .setTitle('Update Your Name')
+          .setDescription(`**IGN:** ${userRow.game_name}\nSelect an option to update your nickname.`)
+          .setColor('#0099ff');
+
+        const row1 = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('upd_guild').setLabel('Update Guild Tag').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('upd_rem_tag').setLabel('Remove Guild Tag').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('upd_add_suf').setLabel('Add Suffix').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('upd_rem_suf').setLabel('Remove Suffix').setStyle(ButtonStyle.Primary)
+        );
+
+        const row2 = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('upd_reset').setLabel('Reset Name').setStyle(ButtonStyle.Danger)
+        );
+
+        // 3. Send Response
+        const response = await interaction.reply({ 
+          embeds: [embed], 
+          components: [row1, row2], 
+          ephemeral: true 
+        });
+
+        // 4. Create Collector
+        const collector = response.createMessageComponentCollector({ 
+          filter: i => i.user.id === interaction.user.id,
+          time: 60000 
+        });
+
+        collector.on('collect', async (i) => {
+          collector.resetTimer();
+          
+          // SAFETY: Check if bot can actually manage this user before doing anything
+          if (!i.member.manageable && i.guild.ownerId !== i.user.id) {
+            return i.reply({ content: `❌ **Permission Error:** I cannot edit your nickname because your role is higher than mine.`, ephemeral: true });
+          }
+
+          const currentNick = i.member.nickname || i.user.displayName;
+          // Ensure parseCurrentNick handles cases where there are no tags gracefully
+          const { tag: currentTag, suffix: currentSuffix } = parseCurrentNick(currentNick);
+        
+          let newNick = '';
+          let statusMsg = '';
+
+          // --- OPTION: ADD SUFFIX (Requires Modal) ---
+          if (i.customId === 'upd_add_suf') {
+             
+            // Check Role Requirement
+            if (!i.member.roles.cache.has(HIERARCH_ROLE_ID)) {
+              return i.reply({ 
+                content: `You need <@&${HIERARCH_ROLE_ID}> role to add a suffix.`, 
+                ephemeral: true 
+              });
+            }
+
+            const modal = new ModalBuilder()
+              .setCustomId('modal_suffix')
+              .setTitle('Add Suffix');
+               
+            const input = new TextInputBuilder()
+              .setCustomId('txt_suffix')
+              .setLabel('Enter Suffix')
+              .setStyle(TextInputStyle.Short)
+              .setMaxLength(10) // Keeping this short is good practice
+              .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+               
+            await i.showModal(modal);
+
+            // Wait for submission
+            const submitted = await i.awaitModalSubmit({ time: 60000, filter: m => m.user.id === i.user.id })
+              .catch(() => null);
+
+            if (submitted) {
+              // We use a specific Try/Catch for the modal flow because 'submitted' is a different interaction token
+              try {
+                const newSuffix = submitted.fields.getTextInputValue('txt_suffix');
+                newNick = buildNicknameWithTag(currentTag, userRow.game_name, newSuffix);
+                   
+                // SAFETY: Truncate to 32 chars to prevent API crash
+                if (newNick.length > 32) newNick = newNick.substring(0, 32);
+
+                await submitted.member.setNickname(newNick, `Update via Bot`);
+                await submitted.reply({ content: `✅ Suffix added: \`${newNick}\``, ephemeral: true });
+              } catch (err) {
+                console.error('Suffix Update Error', err);
+                await submitted.reply({ content: `❌ Failed to update nickname. (Likely permissions or length issue)`, ephemeral: true }).catch(() => {});
+              }
+            }
+            return; // Exit loop for this button click
+          }
+
+          // --- OTHER BUTTONS (Direct Actions) ---
+          try {
+            await i.deferReply({ ephemeral: true });
+
+            if (i.customId === 'upd_rem_tag') {
+              newNick = buildNicknameWithTag(null, userRow.game_name, currentSuffix);
+              statusMsg = 'Tag removed';
+
+            } else if (i.customId === 'upd_rem_suf') {
+              newNick = buildNicknameWithTag(currentTag, userRow.game_name, null);
+              statusMsg = 'Suffix removed';
+
+            } else if (i.customId === 'upd_reset') {
+              const data = await getAlbionPlayerData(userRow.game_id);
+              const freshTag = data && data.GuildName ? data.GuildName.slice(0, 5) : null;
+              newNick = buildNicknameWithTag(freshTag, userRow.game_name, null);
+              statusMsg = 'Name reset';
+
+            } else if (i.customId === 'upd_guild') {
+              const data = await getAlbionPlayerData(userRow.game_id);
+              const freshTag = data && data.GuildName ? data.GuildName.slice(0, 5) : null;
+              newNick = buildNicknameWithTag(freshTag, userRow.game_name, currentSuffix);
+              statusMsg = 'Guild tag updated';
+            }
+
+            // SAFETY: Truncate to 32 chars
+            if (newNick.length > 32) {
+              newNick = newNick.substring(0, 32);
+              statusMsg += ' (Truncated to 32 chars)';
+            }
+
+            // Apply Change
+            await i.member.setNickname(newNick, `Update via Bot`);
+            await i.editReply(`Action Done! **${statusMsg}**\nNew name: \`${newNick}\``);
+
+          } catch (error) {
+            console.error(error);
+            const errContent = error.code === 50013 
+              ? '❌ **Missing Permissions:** I cannot change your name. My role might be below yours.'
+              : '❌ Error processing request.';
+            
+            // Handle reply state safely
+            if (i.deferred || i.replied) await i.editReply(errContent).catch(() => {});
+            else await i.reply({ content: errContent, ephemeral: true }).catch(() => {});
+          }
+        });
+
+        // 5. Cleanup on Timeout
+        collector.on('end', async (_, reason) => {
+          if (reason === 'time') {
+            try {
+              // Disable all buttons in both rows
+              const disabledRow1 = new ActionRowBuilder().addComponents(row1.components.map(b => ButtonBuilder.from(b).setDisabled(true)));
+              const disabledRow2 = new ActionRowBuilder().addComponents(row2.components.map(b => ButtonBuilder.from(b).setDisabled(true)));
+                
+              // You cannot edit an ephemeral reply directly using the interaction object after 15 mins, 
+              // but since this is 60s, interaction.editReply works fine.
+              await interaction.editReply({ content: '⚠️ **Menu expired.** Run the command again.', components: [disabledRow1, disabledRow2] });
+            } catch (e) { 
+              // Message might have been deleted, ignore error
+            }
+          }
+        });
+      }
+
     }
 
 

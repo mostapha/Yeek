@@ -139,7 +139,13 @@ const commands = [
     .addUserOption(option => 
       option.setName('user')
         .setDescription('User to unregister (Admin/Mod only)')
-        .setRequired(false))
+        .setRequired(false)),
+
+  // ADD THIS NEW COMMAND
+  new SlashCommandBuilder()
+    .setName('update_name')
+    .setDescription('Manage your nickname (Add suffix, update guild tag, etc)')
+    .toJSON(),
 
 ];
 
