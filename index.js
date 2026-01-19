@@ -1980,8 +1980,8 @@ I made this based on my own experience and what I know about the weapons. There 
         const userRow = findByDiscordId(interaction.user.id);
         if (!userRow) {
           return interaction.reply({ 
-            content: `❌ You are not registered with Yeek bot. Please register again using <#1247939976667205633> first.`, 
-            ephemeral: true 
+            content: `❌ You are not registered with Yeek bot. Please register again in <#1247939976667205633> first.`, 
+            flags: 64
           });
         }
 
@@ -2006,7 +2006,7 @@ I made this based on my own experience and what I know about the weapons. There 
         const response = await interaction.reply({ 
           embeds: [embed], 
           components: [row1, row2], 
-          ephemeral: true 
+          flags: 64 
         });
 
         // 4. Create Collector
@@ -2020,7 +2020,7 @@ I made this based on my own experience and what I know about the weapons. There 
           
           // SAFETY: Check if bot can actually manage this user before doing anything
           if (!i.member.manageable && i.guild.ownerId !== i.user.id) {
-            return i.reply({ content: `❌ **Permission Error:** I cannot edit your nickname because your role is higher than mine.`, ephemeral: true });
+            return i.reply({ content: `❌ **Permission Error:** I cannot edit your nickname because your role is higher than mine.`, flags: 64 });
           }
 
           const currentNick = i.member.nickname || i.user.displayName;
@@ -2037,7 +2037,7 @@ I made this based on my own experience and what I know about the weapons. There 
             if (!i.member.roles.cache.has(HIERARCH_ROLE_ID)) {
               return i.reply({ 
                 content: `You need <@&${HIERARCH_ROLE_ID}> role to add a suffix.`, 
-                ephemeral: true 
+                flags: 64
               });
             }
 
@@ -2070,10 +2070,10 @@ I made this based on my own experience and what I know about the weapons. There 
                 if (newNick.length > 32) newNick = newNick.substring(0, 32);
 
                 await submitted.member.setNickname(newNick, `Update via Bot`);
-                await submitted.reply({ content: `✅ Suffix added: \`${newNick}\``, ephemeral: true });
+                await submitted.reply({ content: `✅ Suffix added: \`${newNick}\``, flags: 64 });
               } catch (err) {
                 console.error('Suffix Update Error', err);
-                await submitted.reply({ content: `❌ Failed to update nickname. (Likely permissions or length issue)`, ephemeral: true }).catch(() => {});
+                await submitted.reply({ content: `❌ Failed to update nickname. (Likely permissions or length issue)`, flags: 64 }).catch(() => {});
               }
             }
             return; // Exit loop for this button click
@@ -2081,7 +2081,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
           // --- OTHER BUTTONS (Direct Actions) ---
           try {
-            await i.deferReply({ ephemeral: true });
+            await i.deferReply({ flags: 64 });
 
             if (i.customId === 'upd_rem_tag') {
               newNick = buildNicknameWithTag(null, userRow.game_name, currentSuffix);
@@ -2122,7 +2122,7 @@ I made this based on my own experience and what I know about the weapons. There 
             
             // Handle reply state safely
             if (i.deferred || i.replied) await i.editReply(errContent).catch(() => {});
-            else await i.reply({ content: errContent, ephemeral: true }).catch(() => {});
+            else await i.reply({ content: errContent, flags: 64 }).catch(() => {});
           }
         });
 
@@ -2780,7 +2780,7 @@ I made this based on my own experience and what I know about the weapons. There 
     if (interaction.customId && interaction.customId.startsWith('comp_check_modal-')) {
       await interaction.reply({
         content: 'You closed the modal.',
-        ephemeral: true
+        flags: 64
       });
     }
 
