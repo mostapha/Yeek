@@ -1133,7 +1133,25 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
   }
 
   const players = apiJson?.players || [];
-  const player = players.find((p) => p.Name.toLowerCase() === gameName.toLowerCase());
+
+  const targetName = gameName.toLowerCase();
+  let match = null;
+  for (const p of players) {
+  // Check name match first to avoid checking fame unnecessarily
+    if (p.Name.toLowerCase() === targetName) {
+    // If we find a player with Fame, return immediately (Best Case)
+      if (p.KillFame !== 0) {
+        match = p;
+        break; 
+      }
+      // If we haven't found a match yet, store this as a fallback (0 Fame)
+      if (!match) {
+        match = p;
+      }
+    }
+  }
+  const player = match;
+
 
   if (!player) {
     await doReact('⚠️');
@@ -3167,7 +3185,25 @@ client.on('messageCreate', async (message) => {
       return message.reply(`No players found with the name "${nameArg}".`);
     }
 
-    const player = players.find((p) => p.Name.toLowerCase() === nameArg.toLowerCase());
+    const targetName = nameArg.toLowerCase();
+    let match = null;
+
+    for (const p of players) {
+      // Check name match first to avoid checking fame unnecessarily
+      if (p.Name.toLowerCase() === targetName) {
+        // If we find a player with Fame, return immediately (Best Case)
+        if (p.KillFame !== 0) {
+          match = p;
+          break; 
+        }
+        // If we haven't found a match yet, store this as a fallback (0 Fame)
+        if (!match) {
+          match = p;
+        }
+      }
+    }
+    
+    const player = match;
     if (!player) {
       return message.reply(
         `No exact match found for "${nameArg}". Please double-check the spelling or use the full exact game name.`
@@ -3245,35 +3281,60 @@ client.on('messageCreate', async (message) => {
       gameName = row.game_name;
     }
 
-    // Fetch player data from Albion API by game_id
-    let apiRes;
+    // Fetch player data from Albion API
     const url = is_modkb_fallback 
       ? `https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=${encodeURIComponent(nameArg)}` 
       : `https://gameinfo-ams.albiononline.com/api/gameinfo/players/${encodeURIComponent(gameId)}`;
 
+    let apiRes;
+
     try {
       const res = await fetch(url);
+
       if (res.status === 404) {
-        return await message.reply({ content: `Player not found (invalid game id for **${gameName}**).`, embeds: [] });
+        return await message.reply({ content: `Player not found (invalid ID/Name).`, embeds: [] });
       }
       if (!res.ok) {
-        console.error('KB: Albion API returned', res.status);
+        console.error(`KB: Albion API Error ${res.status} for ${url}`);
         return await message.reply({ content: 'Error contacting Albion API — try again later.', embeds: [] });
       }
 
-      apiRes = is_modkb_fallback 
-        ? (await res.json()).players.find(e => e.Name.toLowerCase() === nameArg.toLowerCase()) 
-        : await res.json();
+      const data = await res.json();
 
-      if(is_modkb_fallback && !apiRes){
-        return await message.reply({ content: `Player not found (invalid game name for **${nameArg}**)`, embeds: [] });
-      }
+      if (is_modkb_fallback) {
+        // --- SEARCH MODE (Optimized) ---
+        const foundPlayers = data.players || [];
+        const targetName = nameArg.toLowerCase();
+        let bestMatch = null;
 
-      if(is_modkb_fallback){
+        // Single loop: Find exact name, prioritizing KillFame > 0
+        for (const p of foundPlayers) {
+          if (p.Name.toLowerCase() === targetName) {
+            // Priority: If they have Fame, pick them and stop looking immediately
+            if (p.KillFame > 0) {
+              bestMatch = p;
+              break; 
+            }
+            // Fallback: If we haven't found a match yet, keep this one (0 Fame)
+            if (!bestMatch) {
+              bestMatch = p;
+            }
+          }
+        }
+
+        apiRes = bestMatch;
+
+        if (!apiRes) {
+          return await message.reply({ content: `Player **${nameArg}** not found.`, embeds: [] });
+        }
+
         gameId = apiRes.Id;
         gameName = apiRes.Name;
-      }
 
+      } else {
+        // --- DIRECT ID MODE ---
+        apiRes = data;
+      }
 
     } catch (err) {
       console.error('KB: fetch error', err);
@@ -3301,7 +3362,7 @@ client.on('messageCreate', async (message) => {
       `[MurderLedger](https://murderledger-europe.albiononline2d.com/players/${gameName}/ledger)`,
       `[Albion killboard](https://albiononline.com/killboard/player/${gameId})`,
       `[AlbionBB](https://europe.albionbb.com/players/${gameName})`,
-      `[AOTracker](https://aotracker.gg/europe/players/${gameName})`,
+      `[killboard-1](https://killboard-1.com/eu/player/${gameName})`
     ].join('\n');
 
     // build a display for the "User" field: ping when lookup used a mention, otherwise show the tag (no ping)
