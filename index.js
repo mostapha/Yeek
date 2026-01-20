@@ -1889,9 +1889,8 @@ I made this based on my own experience and what I know about the weapons. There 
 
         // 2. Permission Check
         // Allow: Super Admin
-        const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
-
-        if (!isSuperAdmin) {
+        const isAdminOrMod = isAdminOrMod(interaction.member);
+        if (!isAdminOrMod) {
           await interaction.editReply({ content: 'Only the super admin can use this command.' });
           return;
         }
