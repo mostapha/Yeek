@@ -2966,7 +2966,7 @@ client.on('channelCreate', async (channel) => {
 });
 
 
-const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link','kb', 'modkb', 'registerhelp']),
+const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link','kb', 'registerhelp']),
       VISITOR_ROLE_ID = process.env.VISITOR_ROLE_ID,
       MESSAGE_USE_IN_ALLOWED_CHANNELS = `Please use register commands in the <#1247939976667205633> or <#1275402208845893644> channel.`;
 
@@ -2984,12 +2984,16 @@ client.on('messageCreate', async (message) => {
   if (!ALLOWED_COMMANDS.has(cmd)) return;
 
   // Check channel restriction unless admin
-  const callerIsAdmin = isAdminOrMod(message.member);
-  
-  if (!callerIsAdmin && !REGISTER_CHANNEL_IDS.includes(message.channel.id)) {
-    message.reply(MESSAGE_USE_IN_ALLOWED_CHANNELS);
+  const is_by_admin = isAdminOrMod(message.member);
+  if(!is_by_admin && !REGISTER_CHANNEL_IDS.includes(message.channel.id)){
+    if(cmd === 'kb') {
+      message.reply(`Please use the commands in the <#1275402208845893644> channel.`);
+    } else {
+      message.reply(MESSAGE_USE_IN_ALLOWED_CHANNELS);
+    }
     return;
   }
+ 
 
   // ---- REGISTERHELP ----
   // place this right after `const cmd = ...` and before channel restriction checks
@@ -3016,16 +3020,12 @@ client.on('messageCreate', async (message) => {
           inline: false },
         { name: '!unregister @User',
           value: 'Admin-only. un-link a game name from a Discord user and purge its roles',
-          inline: false },
-        { name: '!modkb <game_name>  or  !modkb @User',
-          value: 'Admin-only. Show game stats of any albion player.',
           inline: false }
       )
 
     await message.reply({ embeds: [helpEmbed] });
     return;
   }
-
 
   // ---- UNREGISTER ----
   if (cmd === 'unregister') {
@@ -3229,12 +3229,7 @@ client.on('messageCreate', async (message) => {
   }
 
   // ---- KB: !kb @discorduser ----
-  if (cmd === 'kb' || cmd === 'modkb') {
-
-    if(cmd === 'modkb' && !isAdminOrMod(message.member)){
-      return message.reply('You do not have permission to use this command.');
-    }
-
+  if (cmd === 'kb') {
     // accept either: !kb @discorduser  OR  !kb game_name
     const mention = message.mentions.users.first();
     const parts = message.content.trim().split(/\s+/).slice(1);
@@ -3242,7 +3237,7 @@ client.on('messageCreate', async (message) => {
     const nameArg = parts.join(' ').trim();
 
     if (!mention && !nameArg) {
-      return message.reply('Usage: `!kb @discorduser` or `!kb game_name` (game name must be registered).');
+      return message.reply('Usage: `!kb @discorduser` or `!kb game_name`');
     }
 
     // Determine lookup: by mention OR by registered game name
@@ -3252,26 +3247,13 @@ client.on('messageCreate', async (message) => {
       if (!row) {
         return message.reply(`${mention} is not linked to any game name.`);
       }
-    } else {
-      // lookup by game name only if it's registered
-      row = findByGameName(nameArg);
-      if (!row && cmd !== 'modkb') {
-        return message.reply(`The game name **${nameArg}** is not linked to any Discord account in this server.`);
-      }
     }
 
     // show immediate feedback so user knows bot is working
     // const replyMsg = await message.channel.send('Thinking, please wait…');
     await message.channel.sendTyping();
 
-    const is_modkb_fallback = !row && cmd === 'modkb';
-
-
-
-
-    // if(is_modkb_fallback){
-    //   return await message.reply({ content: `we think of this`, embeds: [] });
-    // }
+    const is_fallback_mode = !row;
     
     let gameId, gameName;
 
@@ -3281,7 +3263,7 @@ client.on('messageCreate', async (message) => {
     }
 
     // Fetch player data from Albion API
-    const url = is_modkb_fallback 
+    const url = is_fallback_mode 
       ? `https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=${encodeURIComponent(nameArg)}` 
       : `https://gameinfo-ams.albiononline.com/api/gameinfo/players/${encodeURIComponent(gameId)}`;
 
@@ -3300,7 +3282,7 @@ client.on('messageCreate', async (message) => {
 
       const data = await res.json();
 
-      if (is_modkb_fallback) {
+      if (is_fallback_mode) {
         // --- SEARCH MODE (Optimized) ---
         const foundPlayers = data.players || [];
         const targetName = nameArg.toLowerCase();
