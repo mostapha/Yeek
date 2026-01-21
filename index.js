@@ -3247,7 +3247,11 @@ client.on('messageCreate', async (message) => {
       if (!row) {
         return message.reply(`${mention} is not linked to any game name.`);
       }
+    } else {
+      row = findByGameName(nameArg);
     }
+
+
 
     // show immediate feedback so user knows bot is working
     // const replyMsg = await message.channel.send('Thinking, please wait…');
