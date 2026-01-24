@@ -1096,7 +1096,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
         });
       }
       return doReply({
-        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Your account is linked to **${user_already_registered.game_name}**. If you want to change it, use the command \`/Unregister\` first`)]
+        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Your account is linked to **${user_already_registered.game_name}**. If you want to change it, use the command \`/unregister\` first`)]
       });
     } else {
       return doReply({
@@ -1160,8 +1160,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
         new EmbedBuilder()
           .setColor('#E74C3C')
           .setTitle('Register error')
-          .setDescription(`No players found with the name **${gameName}**`)
-          .setFooter({ text: `Make sure the game name is correct and the account is on the Europe server.` })
+          .setDescription(`No players found with the name **${gameName}**\nMake sure the game name is correct and the account is on the Europe server.`)
       ],
       flags: 64
     });
