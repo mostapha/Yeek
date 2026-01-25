@@ -2940,17 +2940,17 @@ client.on('channelCreate', async (channel) => {
 
       const embed = new EmbedBuilder()
         .setColor(0x2ecc71)
-        .setTitle('Checklist')
+        .setTitle('How to Apply')
         .setDescription(`
 ### Answer these questions:
 1. Do you understand English?
 2. Do you agree to play **only** for Martlock?
 3. Can you join voice chat to hear calls? (no need to talk)
-### Send 2 screenshots:
+### Send 2 full size screenshots:
 1. Character stats
-2. Faction warfare overview **(your name should be visible)**
+2. Faction warfare stats **:warning: your name should be visible :warning:**
 `)
-        .setImage('https://i.imgur.com/ZVoVlcC.png')
+        .setImage('https://i.imgur.com/xmdGLU4.gif')
         .setFooter(
           { text: `After that, we'll get back to you as soon as possible. Thanks!` }
         )
