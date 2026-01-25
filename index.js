@@ -215,6 +215,23 @@ function buildCompMessageBody(comp) {
   return lines.join('\n');
 }
 
+// Add this helper function near buildCompMessageBody
+function getCompMessagePayload(comp) {
+  const text = buildCompMessageBody(comp);
+  
+  // If text exceeds normal message limit, use an Embed
+  if (text.length > 2000) {
+    const embed = new EmbedBuilder()
+      .setDescription(text)
+      .setColor('#E67E22'); // Using your bot's standard orange color
+      
+    return { content: '', embeds: [embed] };
+  }
+  
+  // Otherwise, return normal text and ensure no embeds are present (clears them if they existed)
+  return { content: text, embeds: [] };
+}
+
 const compQueues = new Map();
 async function runWithCompLock(compId, operation) {
   let currentPromise = compQueues.get(compId) ?? Promise.resolve();
@@ -278,7 +295,7 @@ async function runSignupLogic(item, message, compId, parsed_data) {
       try {
         const ch = await client.channels.fetch(fresh.channel_id);
         const posted = await ch.messages.fetch(fresh.message_id);
-        await posted.edit(buildCompMessageBody({ ...fresh, slots }));
+        await posted.edit(getCompMessagePayload({ ...fresh, slots }));
       } catch (e) {
         if (e.code === 10008) {  // Unknown message
           await message.reply('The comp message was deleted, maybe this is an old thread');
@@ -310,7 +327,7 @@ async function runSignupLogic(item, message, compId, parsed_data) {
     try {
       const ch = await client.channels.fetch(fresh.channel_id);
       const posted = await ch.messages.fetch(fresh.message_id);
-      await posted.edit(buildCompMessageBody({ ...fresh, slots }));
+      await posted.edit(getCompMessagePayload({ ...fresh, slots }));
     } catch (e) {
       if (e.code === 10008) {  // Unknown message
         await message.reply('The comp message was deleted, maybe this is an old thread');
@@ -1738,7 +1755,7 @@ I made this based on my own experience and what I know about the weapons. There 
             try {
               const channel = await client.channels.fetch(fresh.channel_id);
               const msg = await channel.messages.fetch(fresh.message_id);
-              const body = buildCompMessageBody({ ...fresh, slots });
+              const body = getCompMessagePayload({ ...fresh, slots });
               await msg.edit(body);
             } catch (e) { /* ignore edit errors */ }
             await interaction.reply({ content: `Assigned ${user.tag} to role ${slotNum}.`, flags: 64 });
@@ -2621,7 +2638,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
         // Build message body
         const comp = getCompById(compId);
-        const body = buildCompMessageBody(comp);
+        const body = getCompMessagePayload(comp);
 
         // post message and create thread
         try {
@@ -2766,7 +2783,7 @@ I made this based on my own experience and what I know about the weapons. There 
       // Update the comp message body and append Unassigned if any
       const refreshed = getCompById(compId);
 
-      const newBody = buildCompMessageBody(refreshed);
+      const newBody = getCompMessagePayload(refreshed);
       try {
         const channel = await client.channels.fetch(refreshed.channel_id);
         const postedMsg = await channel.messages.fetch(refreshed.message_id);
@@ -2778,7 +2795,7 @@ I made this based on my own experience and what I know about the weapons. There 
             const thread = await client.channels.fetch(refreshed.thread_id);
             const lines = unassigned.map(u => `- ${u.playerId ? `<@${u.playerId}>` : u.userName} (was: ${u.oldRole})`);
             await thread.send({
-              content: `Some signups could not be preserved after the edit and were unassigned:\n${lines.join('\n')}`
+              content: `<@${comp.organizer_id}>, some signups could not be preserved after the edit and were unassigned:\n${lines.join('\n')}`
             });
           } catch (err) {
             console.error('Failed to post unassigned notice in thread:', err);
