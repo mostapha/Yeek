@@ -2249,6 +2249,9 @@ I made this based on my own experience and what I know about the weapons. There 
       return;
     } else if (interaction.commandName === 'Update name') {
 
+      // 1. Get the current nickname (fallback to display name if no specific nickname is set)
+      const currentName = interaction.targetMember.nickname || interaction.targetMember.displayName;
+    
       const modal = new ModalBuilder()
         .setCustomId(`renameModal:${interaction.targetId}`)
         .setTitle('Enter Albion nickname');
@@ -2257,6 +2260,7 @@ I made this based on my own experience and what I know about the weapons. There 
         .setCustomId('nicknameInput')
         .setLabel('Player nickname')
         .setStyle(TextInputStyle.Short)
+        .setValue(currentName.replace(/\[(.*?)\]\s*/, ''))
         .setRequired(true);
 
       const row = new ActionRowBuilder().addComponents(input);
