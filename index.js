@@ -500,6 +500,17 @@ function recordStat(userId, weapon, displayName) {
   saveStats();
 }
 
+// [NEW] Load Guild Tags
+const guildTagsPath = new URL('./guild_tags.json', import.meta.url);
+let customGuildTags = {};
+try {
+  const rawTags = readSync(guildTagsPath);
+  customGuildTags = JSON.parse(rawTags);
+  console.log('Loaded custom guild tags:', Object.keys(customGuildTags).length);
+} catch (err) {
+  console.log('No guild_tags.json found or invalid, using default tagging.', err);
+}
+
 
 
 // Your role tree data
@@ -1003,24 +1014,37 @@ async function fetchAlbionPlayers(nickname) {
   const data = await res.json();
   return data.players || [];
 }
+
+
+function buildGuildTag(guildName, guildId) {
+  // [NEW] Check for custom tag by GuildId
+  if (guildId && customGuildTags[guildId]) {
+    return customGuildTags[guildId];
+  }
+  let guild = guildName;
+  if (guild.toLowerCase().startsWith('the ')) guild = guild.slice(5);
+  return guild.slice(0, 5);
+}
+
 function formatAlbionName(player) {
   if (!player.GuildName) return player.Name;
-  let guild = player.GuildName;
-  if (guild.toLowerCase().startsWith('the ')) guild = guild.slice(4);
-  const guildTag = `[${guild.slice(0, 5)}]`;
-  return `${guildTag} ${player.Name}`;
+
+  // [NEW] Check for custom tag by GuildId
+  let guild_tag = buildGuildTag(player.GuildName, player.GuildId)
+
+  return `[${guild_tag}] ${player.Name}`;
 }
 
 // Helper: build nickname from guild name and player name
-function buildNickname(guildName, playerName) {
+function buildNickname(player) {
   // if no guild name (empty string, null or whitespace) -> use only player name
-  if (!guildName || String(guildName).trim() === '') return String(playerName);
+  if (!player.GuildName || String(player.GuildName).trim() === '') return String(player.Name);
 
   // take first 5 characters exactly (keeps spaces if present)
-  const firstFive = String(guildName).slice(0, 5);
+  const guild_tag = buildGuildTag(player.GuildName, player.GuildId);
 
   // construct nickname and ensure it doesn't exceed Discord's 32-char limit
-  let nick = `[${firstFive}] ${playerName}`;
+  let nick = `[${guild_tag}] ${player.Name}`;
   return nick;
 }
 
@@ -1204,7 +1228,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
       }
 
       // Set Nickname
-      await guildMember.setNickname(buildNickname(player.GuildName, player.Name), `Registered by ${executorId}`);
+      await guildMember.setNickname(buildNickname(player), `Registered by ${executorId}`);
     } catch (err) {
       if (err.code === RESTJSONErrorCodes.MissingPermissions) {
         extraInfo = `Failed to set nickname: ${err.message}`;
@@ -2126,13 +2150,13 @@ I made this based on my own experience and what I know about the weapons. There 
 
             } else if (i.customId === 'upd_reset') {
               const data = await getAlbionPlayerData(userRow.game_id);
-              const freshTag = data && data.GuildName ? data.GuildName.slice(0, 5) : null;
+              const freshTag = data && data.GuildName ? buildGuildTag(data.GuildName, data.GuildId) : null;
               newNick = buildNicknameWithTag(freshTag, userRow.game_name, null);
               statusMsg = 'Name reset';
 
             } else if (i.customId === 'upd_guild') {
               const data = await getAlbionPlayerData(userRow.game_id);
-              const freshTag = data && data.GuildName ? data.GuildName.slice(0, 5) : null;
+              const freshTag = data && data.GuildName ? buildGuildTag(data.GuildName, data.GuildId) : null;
               newNick = buildNicknameWithTag(freshTag, userRow.game_name, currentSuffix);
               statusMsg = 'Guild tag updated';
             }
