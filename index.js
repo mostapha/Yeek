@@ -506,7 +506,6 @@ let customGuildTags = {};
 try {
   const rawTags = readSync(guildTagsPath);
   customGuildTags = JSON.parse(rawTags);
-  console.log('Loaded custom guild tags:', Object.keys(customGuildTags).length);
 } catch (err) {
   console.log('No guild_tags.json found or invalid, using default tagging.', err);
 }
@@ -1133,7 +1132,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
     if (isSelfRegister) {
       if (user_already_registered.game_name.toLowerCase() === gameName.toLowerCase()) {
         return doReply({
-          embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(`You are already registered as **${user_already_registered.game_name}**, you don't need to do it again.`)]
+          embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(`You are already registered as **${user_already_registered.game_name}**, you don't need to do it again. To update your name you can use */update_name* command.`)]
         });
       }
       return doReply({
@@ -1386,7 +1385,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
       .setStyle(ButtonStyle.Secondary)
   );
 
-  const promptContent = `Are you sure you want to unregister **${existing.game_name}** from ${isSelfUnregister ? 'your' : `<@${targetId}>'s`} account? This will also purge all of ${isSelfUnregister ? 'your' : 'their'} roles!`;
+  const promptContent = `Are you sure you want to unregister **${existing.game_name}** from ${isSelfUnregister ? 'your' : `<@${targetId}>'s`} account? This will also purge all of ${isSelfUnregister ? 'your' : 'their'} roles! if it's only to update name, you can use */update_name* command instead.`;
 
   // Send Prompt
   const promptMessage = await doReply({
