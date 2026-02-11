@@ -20,11 +20,11 @@ const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',')
 const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
 const CALLERS_ROLES_IDS = process.env.CALLERS_ROLES_IDS.split(',');
 
-const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID,
-      MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
+const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
       EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
       INTERN_ROLE_ID = process.env.INTERN_ROLE_ID,
-      HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID;
+      HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID,
+      ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
 
 const YEEK_COMMANDS_CHANNEL = process.env.YEEK_COMMANDS_CHANNEL;
 
@@ -265,13 +265,31 @@ async function runSignupLogic(item, message, compId, parsed_data) {
       await message.react('❌').catch(() => {});
       return { ok: false, reason: 'no_comp' };
     }
+
     const slots = fresh.slots;
-    if (isNaN(idx) || idx < 1 || idx > slots.length) {
-      await message.react('❌').catch(() => {});
-      await message.reply('Invalid role number.').catch(() => {});
-      return { ok: false, reason: 'bad_index' };
+    let target;
+
+    // --- NEW LOGIC START ---
+    
+    // Case A: Universal Unsign (User typed "-")
+    if (isUnassign && idx === 0) {
+      // Find the slot where this user is signed up
+      target = slots.find(s => s.playerId === String(item.authorId));
+      
+      if (!target) {
+        await message.react('❌').catch(() => {});
+        await message.reply('You are not signed up to any role.').catch(() => {});
+        return { ok: false, reason: 'not_found' };
+      }
+    } else { // Case B: Specific Index (User typed "5" or "-5")
+      if (isNaN(idx) || idx < 1 || idx > slots.length) {
+        await message.react('❌').catch(() => {});
+        await message.reply('Invalid role number.').catch(() => {});
+        return { ok: false, reason: 'bad_index' };
+      }
+      target = slots[idx - 1];
     }
-    const target = slots[idx - 1];
+    // --- NEW LOGIC END --
 
     if (isUnassign) {
       if (!target.playerId) {
@@ -289,6 +307,8 @@ async function runSignupLogic(item, message, compId, parsed_data) {
         return { ok: false, reason: 'not_allowed' };
       }
 
+      let _playerId = target.playerId;
+
       target.playerId = null;
       target.playerName = null;
       updateCompSlots(fresh.id, slots);
@@ -304,7 +324,15 @@ async function runSignupLogic(item, message, compId, parsed_data) {
           await message.reply('Failed to update comp message after unassign');
         }
       }
+
       await message.react('✅').catch(() => {});
+
+
+      // Send the Embed
+      await message.reply({ embeds: [
+        new EmbedBuilder().setDescription(`<@${_playerId}> removed from \`${target.roleName}\` slot.`)
+      ] });
+      
       return { ok: true };
     }
 
@@ -1804,8 +1832,8 @@ I made this based on my own experience and what I know about the weapons. There 
         }
 
         // Only organizer can edit
-        const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
-        if (String(comp.organizer_id) !== String(interaction.user.id) && !isSuperAdmin) {
+        const isAdmin = interaction.member.roles.cache.has(ADMIN_ROLE_ID);
+        if (String(comp.organizer_id) !== String(interaction.user.id) && !isAdmin) {
           await interaction.reply({ content: 'Only the organizer can edit this comp.', flags: 64 });
           return;
         }
@@ -2370,8 +2398,9 @@ I made this based on my own experience and what I know about the weapons. There 
       };
 
       // Only organizer can edit
-      const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
-      if (String(fullComp.organizer_id) !== String(interaction.user.id) && !isSuperAdmin) {
+      const isHighlord = interaction.member.roles.cache.has(ADMIN_ROLE_ID);
+
+      if (String(fullComp.organizer_id) !== String(interaction.user.id) && !isHighlord) {
         return await interaction.reply({
           content: 'Only the organizer can edit this comp.',
           flags: 64
@@ -2740,8 +2769,8 @@ I made this based on my own experience and what I know about the weapons. There 
         return;
       }
 
-      const isSuperAdmin = String(interaction.user.id) === SUPER_ADMIN_ID;
-      if (String(comp.organizer_id) !== String(interaction.user.id) && !isSuperAdmin) {
+      const isAdmin = interaction.member.roles.cache.has(ADMIN_ROLE_ID);
+      if (String(comp.organizer_id) !== String(interaction.user.id) && !isAdmin) {
         await interaction.reply({ content: 'Only the organizer can edit this comp.', flags: 64 });
         return;
       }
@@ -3449,8 +3478,8 @@ client.on('messageCreate', async (message) => {
     // Guard 5: Comp lookup (most expensive, do last)
     const comp = getCompByThreadId(message.channel.id);
     if (!comp) return;
-
-    if (num < 1 || num > 60) {
+    
+    if ((num < 1 && text !== '-') || num > 60) {
       await message.react('❌').catch(() => {});
       await message.reply('Invalid role number.').catch(() => {});
       return;
