@@ -157,7 +157,7 @@ async function showEditCompModal(interaction, comp) {
 
   const slotsInput = new TextInputBuilder()
     .setCustomId('comp_slots')
-    .setLabel('Slots (one role name per line, without numbers)')
+    .setLabel('Slots (one role name per line)')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true)
     .setValue(slotsText);
