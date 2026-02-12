@@ -157,7 +157,7 @@ async function showEditCompModal(interaction, comp) {
 
   const slotsInput = new TextInputBuilder()
     .setCustomId('comp_slots')
-    .setLabel('Slots (one role name per line)')
+    .setLabel('Slots (one role name per line, without numbers)')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true)
     .setValue(slotsText);
@@ -2708,21 +2708,34 @@ I made this based on my own experience and what I know about the weapons. There 
           // update DB with message_id/thread_id
           updateCompRow(compId, { message_id: posted.id, thread_id: thread.id });
 
+
+          // 1. Create the Button
+          const linkButton = new ButtonBuilder()
+            .setLabel('READ ME') // The text on the button
+            .setURL('https://discord.com/channels/1247740449959968870/1429153633295011910')
+            .setStyle(ButtonStyle.Link); // MUST be Link style
+
+          // 2. Put the Button in a Row
+          const linkRow = new ActionRowBuilder().addComponents(linkButton);
+    
           // send a sign-up guide embed as the first message inside the thread
           const guideEmbed = new EmbedBuilder()
-            .setDescription(
-              `### Comp posted by:
-<@${comp.organizer_id}>
+            .setAuthor({
+              // Use member display name (nickname) if available, fallback to username
+              name: `Comp posted by ${interaction.member?.displayName || interaction.user.username}`,
+              // Get the dynamic avatar URL (animated if they have Nitro)
+              iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+            })
+            .setDescription(`
 ### How to sign up:
 - Type the role number to take the role
-- Use negative role number to unsign (example: -2 to unsign from role 2)
-- The organizer can use \`/comp_assign\` to sign anyone
-- The organizer can use -N to unsign anyone`
+- Use negative role number or minus sign to remove yourself from the role (example: -2 or - to drop the role)
+`
             )
-            .setColor(0x3498db);
+            .setColor(0x58B9FF);
 
           try {
-            await thread.send({ embeds: [guideEmbed] });
+            await thread.send({ embeds: [guideEmbed], components: [linkRow] });
           } catch (err) {
             console.error('Failed to send signup guide embed in thread:', err);
             // not fatal for the interaction response, continue
