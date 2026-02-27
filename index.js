@@ -3560,10 +3560,10 @@ client.on('guildMemberRemove', async (member) => {
 
 
 const ROLE_CONFIG = {
-  DPS: { id: '1307656284258177034', label: 'DPS', style: ButtonStyle.Danger, emoji: '⚔️' },
+  DPS: { id: '1307656284258177034', label: 'DPS', style: ButtonStyle.Secondary, emoji: '⚔️' },
   Support: { id: '1307656969057734678', label: 'Support', style: ButtonStyle.Secondary, emoji: '🔧' },
-  Healer: { id: '1307656873545175081', label: 'Healer', style: ButtonStyle.Success, emoji: '✨' },
-  Tank: { id: '1307656261654937652', label: 'Tank', style: ButtonStyle.Primary, emoji: '🛡️' }
+  Healer: { id: '1307656873545175081', label: 'Healer', style: ButtonStyle.Secondary, emoji: '✨' },
+  Tank: { id: '1307656261654937652', label: 'Tank', style: ButtonStyle.Secondary, emoji: '🛡️' }
 };
 
 // --- HELPER FUNCTION ---
@@ -3595,10 +3595,10 @@ client.on('messageCreate', async (message) => {
     const embed = generateRoleSelectionEmbed(message.guild);
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('btn_role_dps').setLabel('🔴 DPS').setStyle(ROLE_CONFIG.DPS.style).setEmoji('1303214793120944188'),
-      new ButtonBuilder().setCustomId('btn_role_tank').setLabel('🔵 Tank').setStyle(ROLE_CONFIG.Tank.style).setEmoji('1303214800137883699'),
-      new ButtonBuilder().setCustomId('btn_role_healer').setLabel('🟢 Healer').setStyle(ROLE_CONFIG.Healer.style).setEmoji('1303214795188736024'),
-      new ButtonBuilder().setCustomId('btn_role_support').setLabel('Support').setStyle(ROLE_CONFIG.Support.style).setEmoji('1303214797663506433')
+      new ButtonBuilder().setCustomId('btn_role_dps').setLabel('DPS').setStyle(ROLE_CONFIG.DPS.style).setEmoji('1303214793120944188'),
+      new ButtonBuilder().setCustomId('btn_role_tank').setLabel('Tank').setStyle(ROLE_CONFIG.Tank.style).setEmoji('1303214800137883699'),
+      new ButtonBuilder().setCustomId('btn_role_support').setLabel('Support').setStyle(ROLE_CONFIG.Support.style).setEmoji('1303214797663506433'),
+      new ButtonBuilder().setCustomId('btn_role_healer').setLabel('Healer').setStyle(ROLE_CONFIG.Healer.style).setEmoji('1303214795188736024')
     );
 
     await message.channel.send({ embeds: [embed], components: [row] });
