@@ -3595,10 +3595,10 @@ client.on('messageCreate', async (message) => {
     const embed = generateRoleSelectionEmbed(message.guild);
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('btn_role_dps').setLabel('DPS').setStyle(ROLE_CONFIG.DPS.style),
-      new ButtonBuilder().setCustomId('btn_role_tank').setLabel('Tank').setStyle(ROLE_CONFIG.Tank.style),
-      new ButtonBuilder().setCustomId('btn_role_healer').setLabel('Healer').setStyle(ROLE_CONFIG.Healer.style),
-      new ButtonBuilder().setCustomId('btn_role_support').setLabel('Support').setStyle(ROLE_CONFIG.Support.style)
+      new ButtonBuilder().setCustomId('btn_role_dps').setLabel('🔴 DPS').setStyle(ROLE_CONFIG.DPS.style).setEmoji('1303214793120944188'),
+      new ButtonBuilder().setCustomId('btn_role_tank').setLabel('🔵 Tank').setStyle(ROLE_CONFIG.Tank.style).setEmoji('1303214800137883699'),
+      new ButtonBuilder().setCustomId('btn_role_healer').setLabel('🟢 Healer').setStyle(ROLE_CONFIG.Healer.style).setEmoji('1303214795188736024'),
+      new ButtonBuilder().setCustomId('btn_role_support').setLabel('Support').setStyle(ROLE_CONFIG.Support.style).setEmoji('1303214797663506433')
     );
 
     await message.channel.send({ embeds: [embed], components: [row] });
