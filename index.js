@@ -3559,6 +3559,83 @@ client.on('guildMemberRemove', async (member) => {
 });
 
 
+const ROLE_CONFIG = {
+  DPS: { id: '1307656284258177034', label: 'DPS', style: ButtonStyle.Danger, emoji: '⚔️' },
+  Support: { id: '1307656969057734678', label: 'Support', style: ButtonStyle.Secondary, emoji: '🔧' },
+  Healer: { id: '1307656873545175081', label: 'Healer', style: ButtonStyle.Success, emoji: '✨' },
+  Tank: { id: '1307656261654937652', label: 'Tank', style: ButtonStyle.Primary, emoji: '🛡️' }
+};
+
+// --- HELPER FUNCTION ---
+// This single function generates the embed dynamically based on current guild stats
+function generateRoleSelectionEmbed(guild) {
+  const dpsRole = guild.roles.cache.get(ROLE_CONFIG.DPS.id);
+  const supportRole = guild.roles.cache.get(ROLE_CONFIG.Support.id);
+  const healerRole = guild.roles.cache.get(ROLE_CONFIG.Healer.id);
+  const tankRole = guild.roles.cache.get(ROLE_CONFIG.Tank.id);
+
+  return new EmbedBuilder()
+    .setTitle('Pick your roles')
+    .setDescription('Click the buttons below to add or remove a role.')
+    .addFields(
+      { name: '⚔️ DPS', value: `${dpsRole?.members.size || 0} players`, inline: true },
+      { name: '🛡️ Tank', value: `${tankRole?.members.size || 0} players`, inline: true },
+      { name: '✨ Healer', value: `${healerRole?.members.size || 0} players`, inline: true },
+      { name: '🔧 Support', value: `${supportRole?.members.size || 0} players`, inline: true }
+    )
+    .setColor('#2b2d31');
+}
+
+// --- SETUP COMMAND ---
+client.on('messageCreate', async (message) => {
+  if (message.content === '!setup-roles' && message.member.permissions.has('Administrator')) {
+    await message.guild.members.fetch(); 
+
+    // Generate the embed using our new helper function
+    const embed = generateRoleSelectionEmbed(message.guild);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('btn_role_dps').setLabel('DPS').setStyle(ROLE_CONFIG.DPS.style),
+      new ButtonBuilder().setCustomId('btn_role_tank').setLabel('Tank').setStyle(ROLE_CONFIG.Tank.style),
+      new ButtonBuilder().setCustomId('btn_role_healer').setLabel('Healer').setStyle(ROLE_CONFIG.Healer.style),
+      new ButtonBuilder().setCustomId('btn_role_support').setLabel('Support').setStyle(ROLE_CONFIG.Support.style)
+    );
+
+    await message.channel.send({ embeds: [embed], components: [row] });
+    await message.delete().catch(() => {}); 
+  }
+});
+
+// --- BUTTON HANDLER ---
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton() || !interaction.customId.startsWith('btn_role_')) return;
+
+  await interaction.deferUpdate(); 
+
+  const guild = interaction.guild;
+  const member = interaction.member;
+
+  let roleIdToToggle;
+  if (interaction.customId === 'btn_role_dps') roleIdToToggle = ROLE_CONFIG.DPS.id;
+  if (interaction.customId === 'btn_role_tank') roleIdToToggle = ROLE_CONFIG.Tank.id;
+  if (interaction.customId === 'btn_role_healer') roleIdToToggle = ROLE_CONFIG.Healer.id;
+  if (interaction.customId === 'btn_role_support') roleIdToToggle = ROLE_CONFIG.Support.id;
+
+  if (!roleIdToToggle) return;
+
+  if (member.roles.cache.has(roleIdToToggle)) {
+    await member.roles.remove(roleIdToToggle);
+    await interaction.followUp({ content: 'Role removed.', ephemeral: true });
+  } else {
+    await member.roles.add(roleIdToToggle);
+    await interaction.followUp({ content: 'Role added.', ephemeral: true });
+  }
+
+  // Generate the updated embed using our helper function
+  const updatedEmbed = generateRoleSelectionEmbed(guild);
+
+  await interaction.message.edit({ embeds: [updatedEmbed] });
+});
 
 
 
