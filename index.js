@@ -3576,12 +3576,12 @@ function generateRoleSelectionEmbed(guild) {
 
   return new EmbedBuilder()
     .setTitle('Pick your roles')
-    .setDescription('Click the buttons below to add or remove a role.')
+    .setDescription('Use the buttons below to assign or remove your primary zvz roles.')
     .addFields(
-      { name: '⚔️ DPS', value: `${dpsRole?.members.size || 0} players`, inline: true },
-      { name: '🛡️ Tank', value: `${tankRole?.members.size || 0} players`, inline: true },
-      { name: '✨ Healer', value: `${healerRole?.members.size || 0} players`, inline: true },
-      { name: '🔧 Support', value: `${supportRole?.members.size || 0} players`, inline: true }
+      { name: '⚔️ DPS', value: `${dpsRole?.members.size || 0} players`, inline: false },
+      { name: '🛡️ Tank', value: `${tankRole?.members.size || 0} players`, inline: false },
+      { name: '✨ Healer', value: `${healerRole?.members.size || 0} players`, inline: false },
+      { name: '🔧 Support', value: `${supportRole?.members.size || 0} players`, inline: false }
     )
     .setColor('#2b2d31');
 }
@@ -3625,10 +3625,10 @@ client.on('interactionCreate', async (interaction) => {
 
   if (member.roles.cache.has(roleIdToToggle)) {
     await member.roles.remove(roleIdToToggle);
-    await interaction.followUp({ content: 'Role removed.', ephemeral: true });
+    await interaction.followUp({ content: `<@&${roleIdToToggle} role removed from you`, ephemeral: true });
   } else {
     await member.roles.add(roleIdToToggle);
-    await interaction.followUp({ content: 'Role added.', ephemeral: true });
+    await interaction.followUp({ content: `<@&${roleIdToToggle} role added to you`, ephemeral: true });
   }
 
   // Generate the updated embed using our helper function
