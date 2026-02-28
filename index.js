@@ -3578,10 +3578,10 @@ function generateRoleSelectionEmbed(guild) {
     .setTitle('Pick your roles')
     .setDescription('Use the buttons below to add or remove zvz roles to your profile.')
     .addFields(
-      { name: '🔴 DPS', value: `${dpsRole?.members.size || 0} players`, inline: true },
-      { name: '🔵 Tank', value: `${tankRole?.members.size || 0} players`, inline: true },
-      { name: '🟡 Support', value: `${supportRole?.members.size || 0} players`, inline: true },
-      { name: '🟢 Healer', value: `${healerRole?.members.size || 0} players`, inline: true }
+      { name: 'DPS', value: `${dpsRole?.members.size || 0} players`, inline: true },
+      { name: 'Tanks', value: `${tankRole?.members.size || 0} players`, inline: true },
+      { name: 'Supports', value: `${supportRole?.members.size || 0} players`, inline: true },
+      { name: 'Healers', value: `${healerRole?.members.size || 0} players`, inline: true }
     )
     .setColor('#2b2d31');
 }
