@@ -2224,8 +2224,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
         // Sort and format top 5 weapons
         const sortedWeapons = Object.entries(userData.weapons)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 20);
+          .sort((a, b) => b[1] - a[1]);
 
         let weaponsString = '';
         if (sortedWeapons.length > 0) {
