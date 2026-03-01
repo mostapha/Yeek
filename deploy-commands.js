@@ -53,22 +53,6 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
     .toJSON(),
 
-
-  new SlashCommandBuilder()
-    .setName('bandit')
-    .setDescription('Calculate next bandit time window')
-    .addStringOption(option =>
-      option.setName('time')
-        .setDescription('Start time (HH:MM, 24h format); use UTC time')
-        .setRequired(true)
-    )
-    .addBooleanOption(option =>
-      option.setName('show')
-        .setDescription('Show result to everyone? (default: no)')
-        .setRequired(false)
-    )
-    .toJSON(),
-
   new SlashCommandBuilder()
     .setName('roles')
     .setDescription('Shows the zvz roles basics guide')
@@ -147,6 +131,14 @@ const commands = [
     .setDescription('Manage your nickname (Add suffix, update guild tag, etc)')
     .toJSON(),
 
+  new SlashCommandBuilder()
+    .setName('check_zvz_roles')
+    .setDescription('Check most played weapons')
+    .addUserOption(option => 
+      option.setName('target')
+        .setDescription('The player you want to check')
+        .setRequired(true)
+    ).toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);

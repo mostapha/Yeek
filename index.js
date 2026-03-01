@@ -7,13 +7,17 @@ import { readFile, writeFile } from 'fs/promises';
 import { readFileSync as readSync } from 'fs';
 import guides from './guides.json' with { type: 'json' };
 import { insertCommon } from './guides/common.js';
-
+import { fileURLToPath } from 'url';
 
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
 config();
+
+// (Put this near the top of index.js if you don't already have __dirname defined in ES Modules)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Config placeholders - replace with real IDs or load from env
 const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',') // allowed channels for non mods/admins
@@ -1546,6 +1550,10 @@ function parseCurrentNick(nickname) {
   };
 }
 
+
+const ZVZ_ROLES_DB_FILE_PATH = path.resolve(__dirname, '../RolesTracker/data/user-data.json'); 
+console.log(ZVZ_ROLES_DB_FILE_PATH);
+
 client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isChatInputCommand()) {
 
@@ -1658,49 +1666,6 @@ I made this based on my own experience and what I know about the weapons. There 
         await interaction.reply({ embeds: [main_roles_guide_embed], components: [open_roles_guide_row] });
 
     
-        break;
-      }
-      case 'bandit': {
-        const timeStr = interaction.options.getString('time');
-        const show = interaction.options.getBoolean('show') || false;
-
-        // Validate HH:MM
-        const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(timeStr);
-        if (!match) {
-          return interaction.reply({ content: '❌ Please use format HH:MM (24h). Example: 13:22', flags: 64 });
-        }
-
-        const [, hh, mm] = match.map(Number);
-
-        const now = new Date();
-        const start = new Date(now);
-        start.setHours(hh, mm, 0, 0);
-
-        // earliest = +3.5h - 15m
-        const earliest = new Date(start.getTime() + (3.5 * 60 - 15) * 60 * 1000);
-        // latest = +6h - 15m
-        const latest = new Date(start.getTime() + (6 * 60 - 15) * 60 * 1000);
-
-        const fmt = (d) => d.toTimeString().slice(0, 5); // HH:MM
-
-        const embed = new EmbedBuilder()
-          .setColor(0xFEFE92)
-          .setDescription(
-            `If Bandit started at **${timeStr}**, the next one will be between **${fmt(earliest)}** and **${fmt(latest)}** at the latest.`
-          )
-          .setThumbnail('https://i.imgur.com/t4QMNiq.png');
-
-
-        const dt = {
-          embeds: [embed],
-        }
-
-        if (!show) {
-          dt.flags = 64; // ephemeral
-        }
-
-
-        await interaction.reply(dt);
         break;
       }
       case 'comp_create':{
@@ -2226,8 +2191,69 @@ I made this based on my own experience and what I know about the weapons. There 
             }
           }
         });
+        break;
       }
+      case 'check_zvz_roles': {
+        const targetUser = interaction.options.getUser('target');
+      
+        // Fetch member to get their server nickname/avatar if possible
+        const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
+        let db = {};
+        try {
+          if (fs.existsSync(ZVZ_ROLES_DB_FILE_PATH)) {
+            const rawData = fs.readFileSync(ZVZ_ROLES_DB_FILE_PATH, 'utf8');
+            db = JSON.parse(rawData);
+          } else {
+            return interaction.reply({ content: 'Database file not found. The scanner might not have run yet.', ephemeral: true });
+          }
+        } catch (error) {
+          console.error('Error reading database:', error);
+          return interaction.reply({ content: 'Database is currently updating. Please try again in a few seconds.', ephemeral: true });
+        }
+
+        const userData = db[targetUser.id];
+      
+        if (!userData) {
+          return interaction.reply({ 
+            content: `No signup data found for **${targetUser.username}**. They haven't signed up for any recent masses or database is not updated yet.`, 
+            ephemeral: true 
+          });
+        }
+
+
+        // Sort and format top 5 weapons
+        const sortedWeapons = Object.entries(userData.weapons)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+
+        let weaponsString = '';
+        if (sortedWeapons.length > 0) {
+          weaponsString = sortedWeapons.map(([weaponName, count], index) => {
+            const cleanName = weaponName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            return `- **${cleanName}** (${count})`;
+          }).join('\n');
+        } else {
+          weaponsString = 'No specific weapons recorded.';
+        }
+
+        let user_name = (targetMember ? (targetMember.displayName || targetMember.nickname) : targetUser.username)
+          .replace(/^[!\s]+/, '')
+          .replace(/.*\[.+?]\s*/, '');
+          
+        const embed = new EmbedBuilder()
+          .setTitle('Top Picked Roles')
+          .setColor('#2b2d31')
+          .setDescription(weaponsString)
+          .setAuthor({ 
+            name: `${user_name}`, 
+            iconURL: targetMember ? targetMember.displayAvatarURL({ dynamic: true }) : targetUser.displayAvatarURL({ dynamic: true }) 
+          })
+          .setFooter({ text: 'Data pulled from signup sheets' });
+
+        await interaction.reply({ embeds: [embed], flags: 64  });
+        break;
+      }
     }
 
 
