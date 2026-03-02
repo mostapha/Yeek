@@ -1,5 +1,5 @@
 import { 
-  Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
+  Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, AttachmentBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
   StringSelectMenuBuilder, RESTJSONErrorCodes, Partials
 } from 'discord.js';
 import { config } from 'dotenv';
@@ -2251,6 +2251,86 @@ I made this based on my own experience and what I know about the weapons. There 
           .setFooter({ text: 'Data pulled from signup sheets' });
 
         await interaction.reply({ embeds: [embed], flags: 64  });
+        break;
+      }
+      case 'weaponstats': {
+        await interaction.deferReply(); 
+
+        let db = {};
+        try {
+          if (fs.existsSync(ZVZ_ROLES_DB_FILE_PATH)) {
+            const rawData = fs.readFileSync(ZVZ_ROLES_DB_FILE_PATH, 'utf8');
+            db = JSON.parse(rawData);
+          } else {
+            return interaction.editReply({ content: 'Database file not found. The scanner might not have run yet.' });
+          }
+        } catch (error) {
+          console.error('Error reading database:', error);
+          return interaction.editReply({ content: 'Database is currently updating. Please try again in a few seconds.' });
+        }
+
+        // 1. Group all users by their weapons
+        const weaponStats = {};
+        for (const [userId, userData] of Object.entries(db)) {
+          if (!userData.weapons) continue;
+
+          for (const [weaponName, count] of Object.entries(userData.weapons)) {
+            if (!weaponStats[weaponName]) {
+              weaponStats[weaponName] = [];
+            }
+            weaponStats[weaponName].push({ userId, count });
+          }
+        }
+
+        // 2. Sort the players for each weapon and keep the top 5
+        const finalLeaderboards = {};
+        for (const [weaponName, players] of Object.entries(weaponStats)) {
+          finalLeaderboards[weaponName] = players
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5); 
+        }
+
+        // Make sure we have the latest server members cached so we can translate IDs to names
+        await interaction.guild.members.fetch();
+
+        // 3. Build the text file content
+        let fileContent = '🏆 ZvZ WEAPON LEADERBOARDS 🏆\n';
+        fileContent += 'Generated from signup sheets; data is not 100% accurate\n\n';
+
+        // Sort the weapons alphabetically so the text file is organized
+        const sortedWeapons = Object.keys(finalLeaderboards).sort();
+
+        if (sortedWeapons.length === 0) {
+          return interaction.editReply({ content: 'No weapon data found in the database yet.' });
+        }
+
+        for (const weapon of sortedWeapons) {
+          // Capitalize weapon names (e.g., "heavy mace" -> "Heavy Mace")
+          const cleanName = weapon.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        
+          fileContent += `=== ${cleanName} ===\n`;
+
+          const players = finalLeaderboards[weapon];
+          players.forEach((player, index) => {
+            // Translate the User ID into a readable server display name
+            const member = interaction.guild.members.cache.get(player.userId);
+            const displayName = member ? member.displayName : `Unknown User (${player.userId})`;
+          
+            fileContent += `${index + 1}. ${displayName} (${player.count})\n`;
+          });
+        
+          fileContent += '\n'; // Add a blank line between weapons
+        }
+
+        // 4. Create the text file attachment from our string buffer
+        const attachment = new AttachmentBuilder(Buffer.from(fileContent, 'utf-8'), { name: 'weapon_leaderboards.txt' });
+
+        // 5. Send it
+        await interaction.editReply({ 
+          content: '✅ **Success!** Here is the complete list of top players for every weapon:', 
+          files: [attachment] 
+        });
+        
         break;
       }
     }

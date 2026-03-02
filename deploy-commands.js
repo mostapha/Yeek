@@ -141,6 +141,12 @@ const commands = [
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.CreatePublicThreads)
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('weaponstats')
+    .setDescription('Get a text file with the top 5 players for every weapon')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
