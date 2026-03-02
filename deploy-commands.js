@@ -138,7 +138,9 @@ const commands = [
       option.setName('target')
         .setDescription('The player you want to check')
         .setRequired(true)
-    ).toJSON(),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.CreatePublicThreads)
+    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
