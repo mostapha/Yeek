@@ -2331,40 +2331,7 @@ I made this based on my own experience and what I know about the weapons. There 
           return interaction.editReply({ embeds: [embed] });
         }
 
-        // --- SCENARIO B: User left weapon blank (Send your custom .txt file) ---
-        let fileContent = '🏆 ZvZ WEAPON LEADERBOARDS 🏆\n';
-        fileContent += 'Generated from signup sheets; data is not 100% accurate\n\n';
-
-        const sortedWeapons = Object.keys(finalLeaderboards).sort();
-
-        if (sortedWeapons.length === 0) {
-          return interaction.editReply({ content: 'No weapon data found for current server members.' });
-        }
-
-        for (const weapon of sortedWeapons) {
-          const cleanName = weapon.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        
-          fileContent += `=== ${cleanName} ===\n`;
-
-          const players = finalLeaderboards[weapon];
-          players.forEach((player, index) => {
-            const member = interaction.guild.members.cache.get(player.userId);
-            const displayName = member ? member.displayName : `Unknown User (${player.userId})`; // Your custom fallback
-          
-            fileContent += `${index + 1}. ${displayName} (${player.count})\n`; // Your custom formatting
-          });
-        
-          fileContent += '\n'; 
-        }
-
-        const attachment = new AttachmentBuilder(Buffer.from(fileContent, 'utf-8'), { name: 'weapon_leaderboards.txt' });
-
-        await interaction.editReply({ 
-          content: `✅ **Success!** Here is the complete list of top ${countLimit} players for every weapon:`, 
-          files: [attachment] 
-        });
-      
-        break;
+        return interaction.editReply({ content: 'Missing weapon info to get data!' });
       }
     }
 

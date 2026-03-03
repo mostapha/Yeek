@@ -149,13 +149,14 @@ const commands = [
       option.setName('weapon')
         .setDescription('Optional: The specific weapon to check')
         .setAutocomplete(true) // <--- THIS ENABLES THE MAGIC DROPDOWN
-        .setRequired(false))
+        .setRequired(true))
     .addIntegerOption(option => 
       option.setName('count')
         .setDescription('Optional: How many top players to show (default: 5)')
         .setMinValue(1)
         .setMaxValue(100)
         .setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
     .toJSON(),
 ];
 
