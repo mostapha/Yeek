@@ -2259,9 +2259,12 @@ I made this based on my own experience and what I know about the weapons. There 
       case 'weaponstats': {
         await interaction.deferReply(); 
 
-        // 1. Get the new optional inputs from the command
         const targetWeaponInput = interaction.options.getString('weapon')?.toLowerCase();
         const countLimit = interaction.options.getInteger('count') || 5;
+
+        if (!targetWeaponInput) {
+          return interaction.editReply({ content: 'Missing weapon info to get data!' });
+        }
 
         let db = {};
         try {
@@ -2276,62 +2279,76 @@ I made this based on my own experience and what I know about the weapons. There 
           return interaction.editReply({ content: 'Database is currently updating. Please try again in a few seconds.' });
         }
 
-        // Fetch all members early so we can filter out people who left the server
-        await interaction.guild.members.fetch();
-
-        // 2. Group all users by their weapons (excluding users no longer in the server)
-        const weaponStats = {};
-        for (const [userId, userData] of Object.entries(db)) {
-          if (!userData.weapons) continue;
+        // 1. Quickly scan the database to find the exact normalized weapon name
+        let matchedWeapon = null;
+        const allDbWeapons = new Set();
+        for (const userData of Object.values(db)) {
+          if (userData.weapons) {
+            Object.keys(userData.weapons).forEach(w => allDbWeapons.add(w));
+          }
+        }
         
-          // Skip this user entirely if they are no longer in the server
-          if (!interaction.guild.members.cache.has(userId)) continue;
+        for (const w of allDbWeapons) {
+          if (w.includes(targetWeaponInput) || targetWeaponInput.includes(w)) {
+            matchedWeapon = w;
+            break;
+          }
+        }
 
-          for (const [weaponName, count] of Object.entries(userData.weapons)) {
-            if (!weaponStats[weaponName]) {
-              weaponStats[weaponName] = [];
+        if (!matchedWeapon) {
+          return interaction.editReply({ content: `Could not find any recent data for a weapon matching "**${targetWeaponInput}**".` });
+        }
+
+        // 2. ONLY extract players who played this specific weapon (Extremely fast)
+        const allPlayers = [];
+        for (const [userId, userData] of Object.entries(db)) {
+          if (userData.weapons && userData.weapons[matchedWeapon]) {
+            allPlayers.push({ userId, count: userData.weapons[matchedWeapon] });
+          }
+        }
+
+        // 3. Sort them from highest to lowest count
+        allPlayers.sort((a, b) => b.count - a.count);
+
+        // 4. Elegantly filter active members using the "Lazy Check" method
+        const verifiedPlayers = [];
+        for (const player of allPlayers) {
+          if (verifiedPlayers.length >= countLimit) break; // Stop once we reach the requested limit
+
+          // Check bot's memory first (instant)
+          let isMemberActive = interaction.guild.members.cache.has(player.userId);
+          
+          // If not in memory, ask Discord API specifically for this ONE user
+          if (!isMemberActive) {
+            const fetchedMember = await interaction.guild.members.fetch(player.userId).catch(() => null);
+            if (fetchedMember) {
+              isMemberActive = true;
             }
-            weaponStats[weaponName].push({ userId, count });
+          }
+
+          // If they are still in the server, add them to the final leaderboard
+          if (isMemberActive) {
+            verifiedPlayers.push(player);
           }
         }
 
-        // 3. Sort players for each weapon and apply the count limit
-        const finalLeaderboards = {};
-        for (const [weaponName, players] of Object.entries(weaponStats)) {
-          finalLeaderboards[weaponName] = players
-            .sort((a, b) => b.count - a.count)
-            .slice(0, countLimit); // Uses your custom limit (default 5)
-        }
+        // 5. Build the visual output
+        const cleanName = matchedWeapon.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-        // --- SCENARIO A: User asked for a SPECIFIC weapon ---
-        if (targetWeaponInput) {
-          const availableWeapons = Object.keys(finalLeaderboards);
-          const matchedWeapon = availableWeapons.find(w => w.includes(targetWeaponInput) || targetWeaponInput.includes(w));
+        let description = verifiedPlayers.map((player, index) => {
+          const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+          return `${medal} <@${player.userId}> (${player.count})`;
+        }).join('\n');
 
-          if (!matchedWeapon) {
-            return interaction.editReply({ content: `Could not find any recent data for a weapon matching "**${targetWeaponInput}**".` });
-          }
+        if (!description) description = 'No active server members play this weapon.';
 
-          const players = finalLeaderboards[matchedWeapon];
-          const cleanName = matchedWeapon.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const embed = new EmbedBuilder()
+          .setTitle(`🏆 Top ${countLimit} Players: ${cleanName}`)
+          .setDescription(description)
+          .setColor('#2b2d31')
+          .setFooter({ text: 'Generated from signup sheets; data is not 100% accurate' });
 
-          let description = players.map((player, index) => {
-            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
-            return `${medal} <@${player.userId}> (${player.count})`; // Formatted to your style
-          }).join('\n');
-
-          if (!description) description = 'No active server members play this weapon.';
-
-          const embed = new EmbedBuilder()
-            .setTitle(`🏆 Top ${countLimit} Players: ${cleanName}`)
-            .setDescription(description)
-            .setColor('#2b2d31')
-            .setFooter({ text: 'Generated from signup sheets; data is not 100% accurate' });
-
-          return interaction.editReply({ embeds: [embed] });
-        }
-
-        return interaction.editReply({ content: 'Missing weapon info to get data!' });
+        return interaction.editReply({ embeds: [embed] });
       }
     }
 
