@@ -1553,6 +1553,9 @@ function parseCurrentNick(nickname) {
 
 const ZVZ_ROLES_DB_FILE_PATH = path.resolve(__dirname, '../RolesTracker/data/user-data.json'); 
 console.log(ZVZ_ROLES_DB_FILE_PATH);
+// --- CACHE FOR AUTOCOMPLETE (Saves VPS Performance) ---
+let cachedWeapons = [];
+let lastCacheTime = 0;
 
 client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isChatInputCommand()) {
@@ -2256,6 +2259,10 @@ I made this based on my own experience and what I know about the weapons. There 
       case 'weaponstats': {
         await interaction.deferReply(); 
 
+        // 1. Get the new optional inputs from the command
+        const targetWeaponInput = interaction.options.getString('weapon')?.toLowerCase();
+        const countLimit = interaction.options.getInteger('count') || 5;
+
         let db = {};
         try {
           if (fs.existsSync(ZVZ_ROLES_DB_FILE_PATH)) {
@@ -2269,10 +2276,16 @@ I made this based on my own experience and what I know about the weapons. There 
           return interaction.editReply({ content: 'Database is currently updating. Please try again in a few seconds.' });
         }
 
-        // 1. Group all users by their weapons
+        // Fetch all members early so we can filter out people who left the server
+        await interaction.guild.members.fetch();
+
+        // 2. Group all users by their weapons (excluding users no longer in the server)
         const weaponStats = {};
         for (const [userId, userData] of Object.entries(db)) {
           if (!userData.weapons) continue;
+        
+          // Skip this user entirely if they are no longer in the server
+          if (!interaction.guild.members.cache.has(userId)) continue;
 
           for (const [weaponName, count] of Object.entries(userData.weapons)) {
             if (!weaponStats[weaponName]) {
@@ -2282,55 +2295,75 @@ I made this based on my own experience and what I know about the weapons. There 
           }
         }
 
-        // 2. Sort the players for each weapon and keep the top 5
+        // 3. Sort players for each weapon and apply the count limit
         const finalLeaderboards = {};
         for (const [weaponName, players] of Object.entries(weaponStats)) {
           finalLeaderboards[weaponName] = players
             .sort((a, b) => b.count - a.count)
-            .slice(0, 5); 
+            .slice(0, countLimit); // Uses your custom limit (default 5)
         }
 
-        // Make sure we have the latest server members cached so we can translate IDs to names
-        await interaction.guild.members.fetch();
+        // --- SCENARIO A: User asked for a SPECIFIC weapon ---
+        if (targetWeaponInput) {
+          const availableWeapons = Object.keys(finalLeaderboards);
+          const matchedWeapon = availableWeapons.find(w => w.includes(targetWeaponInput) || targetWeaponInput.includes(w));
 
-        // 3. Build the text file content
+          if (!matchedWeapon) {
+            return interaction.editReply({ content: `Could not find any recent data for a weapon matching "**${targetWeaponInput}**".` });
+          }
+
+          const players = finalLeaderboards[matchedWeapon];
+          const cleanName = matchedWeapon.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+          let description = players.map((player, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+            return `${medal} <@${player.userId}> (${player.count})`; // Formatted to your style
+          }).join('\n');
+
+          if (!description) description = 'No active server members play this weapon.';
+
+          const embed = new EmbedBuilder()
+            .setTitle(`🏆 Top ${countLimit} Players: ${cleanName}`)
+            .setDescription(description)
+            .setColor('#2b2d31')
+            .setFooter({ text: 'Generated from signup sheets; data is not 100% accurate' });
+
+          return interaction.editReply({ embeds: [embed] });
+        }
+
+        // --- SCENARIO B: User left weapon blank (Send your custom .txt file) ---
         let fileContent = '🏆 ZvZ WEAPON LEADERBOARDS 🏆\n';
         fileContent += 'Generated from signup sheets; data is not 100% accurate\n\n';
 
-        // Sort the weapons alphabetically so the text file is organized
         const sortedWeapons = Object.keys(finalLeaderboards).sort();
 
         if (sortedWeapons.length === 0) {
-          return interaction.editReply({ content: 'No weapon data found in the database yet.' });
+          return interaction.editReply({ content: 'No weapon data found for current server members.' });
         }
 
         for (const weapon of sortedWeapons) {
-          // Capitalize weapon names (e.g., "heavy mace" -> "Heavy Mace")
           const cleanName = weapon.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         
           fileContent += `=== ${cleanName} ===\n`;
 
           const players = finalLeaderboards[weapon];
           players.forEach((player, index) => {
-            // Translate the User ID into a readable server display name
             const member = interaction.guild.members.cache.get(player.userId);
-            const displayName = member ? member.displayName : `Unknown User (${player.userId})`;
+            const displayName = member ? member.displayName : `Unknown User (${player.userId})`; // Your custom fallback
           
-            fileContent += `${index + 1}. ${displayName} (${player.count})\n`;
+            fileContent += `${index + 1}. ${displayName} (${player.count})\n`; // Your custom formatting
           });
         
-          fileContent += '\n'; // Add a blank line between weapons
+          fileContent += '\n'; 
         }
 
-        // 4. Create the text file attachment from our string buffer
         const attachment = new AttachmentBuilder(Buffer.from(fileContent, 'utf-8'), { name: 'weapon_leaderboards.txt' });
 
-        // 5. Send it
         await interaction.editReply({ 
-          content: '✅ **Success!** Here is the complete list of top players for every weapon:', 
+          content: `✅ **Success!** Here is the complete list of top ${countLimit} players for every weapon:`, 
           files: [attachment] 
         });
-        
+      
         break;
       }
     }
@@ -3094,6 +3127,47 @@ I made this based on my own experience and what I know about the weapons. There 
       content: null            // clear any leftover text content
     });
 
+  } else if (interaction.isAutocomplete()){
+    if (interaction.commandName === 'weaponstats') {
+      const focusedValue = interaction.options.getFocused().toLowerCase();
+      
+      const now = Date.now();
+      // Only read the file if our cache is older than 5 minutes (300,000 ms)
+      if (now - lastCacheTime > 300000) { 
+        try {
+          if (fs.existsSync(ZVZ_ROLES_DB_FILE_PATH)) {
+            const rawData = fs.readFileSync(ZVZ_ROLES_DB_FILE_PATH, 'utf8');
+            const db = JSON.parse(rawData);
+            
+            const uniqueWeapons = new Set();
+            for (const userData of Object.values(db)) {
+              if (userData.weapons) {
+                Object.keys(userData.weapons).forEach(w => uniqueWeapons.add(w));
+              }
+            }
+            cachedWeapons = Array.from(uniqueWeapons).sort();
+            lastCacheTime = now;
+          }
+        } catch (err) {
+          // If it fails (mid-write), just silently use the old cache
+        }
+      }
+
+      // Filter the cached weapons based on what the user is typing
+      const filtered = cachedWeapons
+        .filter(choice => choice.toLowerCase().includes(focusedValue))
+        .slice(0, 25); // Discord strictly only allows up to 25 choices to be returned
+
+      // Send the choices back to the Discord UI
+      await interaction.respond(
+        filtered.map(choice => {
+          // Capitalize nicely for the UI (e.g., "Heavy Mace")
+          const cleanName = choice.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          return { name: cleanName, value: choice };
+        })
+      );
+    }
+    return;
   }
 
 

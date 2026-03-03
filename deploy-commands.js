@@ -144,8 +144,18 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('weaponstats')
-    .setDescription('Get a text file with the top 5 players for every weapon')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDescription('Get top players for weapons. Leave weapon blank for a full .txt file.')
+    .addStringOption(option => 
+      option.setName('weapon')
+        .setDescription('Optional: The specific weapon to check')
+        .setAutocomplete(true) // <--- THIS ENABLES THE MAGIC DROPDOWN
+        .setRequired(false))
+    .addIntegerOption(option => 
+      option.setName('count')
+        .setDescription('Optional: How many top players to show (default: 5)')
+        .setMinValue(1)
+        .setMaxValue(100)
+        .setRequired(false))
     .toJSON(),
 ];
 
