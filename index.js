@@ -1253,13 +1253,13 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
 
       // Assign role
       try {
-        if(VISITOR_ROLE_ID) await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${executorMember.user.tag}`);
+        if(VISITOR_ROLE_ID) await guildMember.roles.add(VISITOR_ROLE_ID, `Account registered`);
       } catch (err) {
         console.error('Failed to assign visitor role:', err);
       }
 
       // Set Nickname
-      await guildMember.setNickname(buildNickname(player), `Registered by ${executorId}`);
+      await guildMember.setNickname(buildNickname(player), `Account registered`);
     } catch (err) {
       if (err.code === RESTJSONErrorCodes.MissingPermissions) {
         extraInfo = `Failed to set nickname: ${err.message}`;
@@ -1459,7 +1459,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
           console.error('Failed to purge roles on unregister:', err);
         }
         // Reset Nickname
-        await guildMember.setNickname(null, `Unregistered by ${executorMember.user.tag}`);
+        await guildMember.setNickname(null, `Account unregistered by ${executorMember.user.tag}`);
 
         await promptMessage.edit({
           content: ``,
@@ -3465,7 +3465,7 @@ client.on('messageCreate', async (message) => {
       const guildMember = await message.guild.members.fetch(targetId);
       // assign visitor role after successful registration
       try {
-        await guildMember.roles.add(VISITOR_ROLE_ID, `Registered by ${message.author.tag}`);
+        await guildMember.roles.add(VISITOR_ROLE_ID, `Linked account to name by ${message.author.tag}`);
       } catch (err) {
         console.error('Failed to assign visitor role to ' + guildMember.user.tag + ':', err);
       }
