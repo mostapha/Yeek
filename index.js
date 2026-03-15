@@ -103,14 +103,6 @@ db.prepare(`
   );
 `).run();
 
-// 1. Ensure the table exists
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS ticket_counter (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    current_count INTEGER NOT NULL DEFAULT 0
-  );
-`).run();
-
 
 // After database initialization
 function cleanupOldComps() {
