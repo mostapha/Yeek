@@ -103,8 +103,11 @@ db.prepare(`
   );
 `).run();
 // Initialize the counter row if it doesn't exist
-db.prepare(`INSERT OR IGNORE INTO ticket_counter (id, current_count) VALUES (2640, 0)`).run();
+db.prepare(`INSERT OR IGNORE INTO ticket_counter (id, current_count) VALUES (2700, 0)`).run();
 
+db.prepare('DELETE FROM ticket_counter WHERE id = 2700').run();
+// Force the ticket counter to start the next ticket at 2600
+db.prepare('UPDATE ticket_counter SET current_count = 2599 WHERE id = 1').run();
 
 
 // After database initialization
