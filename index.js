@@ -103,7 +103,6 @@ db.prepare(`
   );
 `).run();
 
-// Initialize the counter row if it doesn't exist
 // 1. Ensure the table exists
 db.prepare(`
   CREATE TABLE IF NOT EXISTS ticket_counter (
@@ -112,9 +111,6 @@ db.prepare(`
   );
 `).run();
 
-// 2. Force insert row 1 with the value 2599. 
-// Using REPLACE guarantees it works whether the table was empty or not.
-db.prepare(`INSERT OR REPLACE INTO ticket_counter (id, current_count) VALUES (1, 2599)`).run();
 
 // After database initialization
 function cleanupOldComps() {
