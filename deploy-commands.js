@@ -158,6 +158,12 @@ const commands = [
         .setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.MentionEveryone)
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('spawn-ticket')
+    .setDescription('Spawns the ticket panel for users')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // Lock to admins
+    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);

@@ -19,6 +19,7 @@ config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+
 // Config placeholders - replace with real IDs or load from env
 const REGISTER_CHANNEL_IDS = process.env.ALLOWED_REGISTER_CHANNELS_ID.split(',') // allowed channels for non mods/admins
 const ADMINS_AND_MODS_IDS = process.env.ADMINS_AND_MODS_IDS.split(',');
@@ -28,7 +29,21 @@ const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
       EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
       INTERN_ROLE_ID = process.env.INTERN_ROLE_ID,
       HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID,
-      ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
+      ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID,
+      MOD_ROLE_ID = process.env.MOD_ROLE_ID,
+      TICKETS_LOG_CHANNEL = process.env.TICKETS_LOG_CHANNEL,
+      TICKETS_CHANNEL_ID = process.env.TICKETS_CHANNEL_ID;
+      
+
+
+const ticketConfig = {
+  targetChannelId: TICKETS_CHANNEL_ID, // Where threads will spawn
+  logChannelId: TICKETS_LOG_CHANNEL,    // Where logs go             
+  adminRoleId: ADMIN_ROLE_ID,
+  modRoleId: MOD_ROLE_ID,   
+  panelColor: '#E67E22',                        // Yeek orange
+  prefix: 'ticket'
+};
 
 const YEEK_COMMANDS_CHANNEL = process.env.YEEK_COMMANDS_CHANNEL;
 
@@ -79,6 +94,18 @@ CREATE TABLE IF NOT EXISTS comps (
   created_at INTEGER NOT NULL
 );
 `);
+
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS ticket_counter (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    current_count INTEGER NOT NULL DEFAULT 0
+  );
+`).run();
+// Initialize the counter row if it doesn't exist
+db.prepare(`INSERT OR IGNORE INTO ticket_counter (id, current_count) VALUES (2640, 0)`).run();
+
+
 
 // After database initialization
 function cleanupOldComps() {
@@ -1269,14 +1296,15 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
       }
     }
 
-    // 6. Success Response & Button
-    const confirmRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`quick_verify`)
-        .setLabel('Open Verification Ticket')
-        .setStyle(ButtonStyle.Success)
-    );
+    const tickets_channel_url = new ButtonBuilder()
+      .setLabel('Verification Tickets')
+      .setURL('https://discord.com/channels/1247740449959968870/1383460322911715459') 
+      .setStyle(ButtonStyle.Link); 
 
+    // 2. Put the Button in a Row
+    const tickets_channel_url_row = new ActionRowBuilder().addComponents(tickets_channel_url);
+    
+          
     await doReact('✅');
     
     // Send the message
@@ -1287,70 +1315,14 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
           .setTitle('Registration Successful')
           .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
       ],
-      components: (isSelfRegister && !hasMemberRoles) ? [confirmRow] : [] // Only show ticket button if self-registering
+      components: (isSelfRegister && !hasMemberRoles) ? [tickets_channel_url_row] : [] // Only show ticket button if self-registering
     });
 
     // 7. Collector Logic for Ticket (Only if self-register)
     if (isSelfRegister && !hasMemberRoles) {
-      // Safety check: ensure prompt is a valid Message object before creating collector
-      if (!prompt) return;
-
-      const collector = prompt.createMessageComponentCollector({
-        filter: i => i.user.id === executorId,
-        time: 30_000,
-        max: 1
-      });
-
-      collector.on('collect', async interaction => {
-        // Since we are creating a ticket which takes time, we defer/acknowledge
-        await interaction.deferReply({ flags: 64 }).catch(err => console.error('Failed to defer reply:', err));
-
-        // Disable button
-        const disabledRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('quick_verify_progress')
-            .setLabel('Opening ticket...')
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(true)
-        );
-        await prompt.edit({ components: [disabledRow] }).catch(err => console.error('Failed to disable button:', err));
-
-        // Ticket Promise
-        const ticketPromise = new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            waitingTickets.delete(interaction.user.id);
-            reject(new Error('Ticket creation timeout after 15s'));
-          }, 15000);
-          waitingTickets.set(interaction.user.id, { resolve, reject, timeout });
-        });
-
-        // Trigger Ticket Bot
-        const yeekCommandsChannel = await client.channels.fetch(YEEK_COMMANDS_CHANNEL);
-        if (!yeekCommandsChannel) {
-          const data = waitingTickets.get(interaction.user.id);
-          if(data) { clearTimeout(data.timeout); data.reject(new Error('Commands channel not found')); waitingTickets.delete(interaction.user.id); }
-          return;
-        }
-
-        await yeekCommandsChannel.send({ content: `$new <@${interaction.user.id}> (for quick create ticket)` });
-
-        // Wait for result
-        try {
-          const channelId = await ticketPromise;
-          await interaction.followUp({ content: `Ticket is created for you, check it here <#${channelId}>`, flags: 64 });
-        } catch (error) {
-          console.error('Failed to get ticket:', error);
-          await interaction.followUp({ content: `Failed to get ticket information, if you don't see any tickets, open it here <#1383460322911715459>`, flags: 64 });
-        }
-
-        // Cleanup button
-        await prompt.edit({ components: [] }).catch(() => {});
-      });
-
-      collector.on('end', async () => {
-        // If expired and button still there, remove it
+      setTimeout(async () => {
         if(prompt.editable) await prompt.edit({ components: [] }).catch(() => {});
-      });
+      }, 15000);
     }
 
   } else {
@@ -1549,6 +1521,10 @@ function parseCurrentNick(nickname) {
     tag: tagMatch ? tagMatch[1] : null
   };
 }
+
+
+
+
 
 
 const ZVZ_ROLES_DB_FILE_PATH = path.resolve(__dirname, '../RolesTracker/data/user-data.json'); 
@@ -2350,6 +2326,24 @@ I made this based on my own experience and what I know about the weapons. There 
 
         return interaction.editReply({ embeds: [embed] });
       }
+
+      case 'spawn-ticket': {
+        const embed = new EmbedBuilder()
+          .setTitle('Verification ticket')
+          .setDescription('To get verified on this server, register then click the button to open a ticket, then go to the ticket and submit the requested information.')
+          .setColor('#57F287'); // Your Yeek bot orange
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('ticket_open')
+            .setLabel('Open Verification Ticket')
+            .setStyle(ButtonStyle.Success)
+        );
+
+        await interaction.channel.send({ embeds: [embed], components: [row] });
+        await interaction.reply({ content: 'Panel spawned.', ephemeral: true });
+        return;
+      }
     }
 
 
@@ -2694,7 +2688,171 @@ I made this based on my own experience and what I know about the weapons. There 
       }
 
 
+    } else if (interaction.customId === 'ticket_open') {
+
+      // Check database for registration
+      const userRecord = db.prepare('SELECT game_name FROM registrations WHERE discord_id = ?').get(interaction.user.id);
+      
+      if (!userRecord) {
+        return interaction.reply({ 
+          content: 'You must be registered to open a ticket. Run `/register` first.', 
+          ephemeral: true 
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      // Get next ticket number
+      const getCount = db.prepare('SELECT current_count FROM ticket_counter WHERE id = 1').get();
+      const nextNumber = getCount ? getCount.current_count + 1 : 1;
+      db.prepare('UPDATE ticket_counter SET current_count = ? WHERE id = 1').run(nextNumber);
+
+      const ticketName = `${ticketConfig.prefix}-${String(nextNumber).padStart(4, '0')}`;
+      const targetChannel = interaction.client.channels.cache.get(ticketConfig.targetChannelId);
+
+      if (!targetChannel) {
+        return interaction.editReply({ content: 'System Error: Ticket channel not found. Contact an admin.' });
+      }
+
+      // Create private thread
+      const thread = await targetChannel.threads.create({
+        name: ticketName,
+        type: ChannelType.PrivateThread,
+        reason: 'User opened a ticket'
+      });
+
+      // Add the user who clicked
+      await thread.members.add(interaction.user.id);
+
+      // Build the close button
+      const closeRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`ticket_close_${interaction.user.id}`) 
+          .setLabel('Close Ticket')
+          .setEmoji('🔒')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+
+      const how_to_apply_embed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle('how to apply')
+        .setDescription(`
+### Answer these questions:
+1. Do you understand English?
+2. Do you agree to play **only** for Martlock?
+3. Can you join voice chat to hear calls? (no need to talk)
+### Send 2 full size screenshots:
+1. Character stats
+2. Faction warfare stats :warning: your name should be visible :warning:
+`)
+        .setImage('https://i.imgur.com/xmdGLU4.gif');
+        
+      // Send initial thread message and ping roles
+      await thread.send({ 
+        content: `
+Hello and welcome ${userRecord.game_name}! :wave:
+In this ticket, you can send us the 2 screenshots and answer the questions.
+After that, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will give you the appropriate roles.
+        `,
+        components: [closeRow] ,
+        embeds: [how_to_apply_embed]
+      });
+
+      // Send log
+      const logChannel = interaction.client.channels.cache.get(ticketConfig.logChannelId);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle('Ticket Opened')
+          .setColor('#2ECC71')
+          .setDescription(`
+              Ticket: <#${thread.id}>
+              Opened By: <@${interaction.user.id}>
+              User ID: \`${interaction.user.id}\`
+              Registered Name: \`${userRecord.game_name}\`
+              Discord nickname: \`${interaction.member?.displayName || interaction.user.tag}\`
+            `)
+          .setTimestamp();
+        await logChannel.send({ embeds: [logEmbed] });
+      }
+
+      await interaction.editReply({ content: `Ticket created: <#${thread.id}>` });
+      return;
+    } else if (interaction.customId.startsWith('ticket_close_')) {
+      const creatorId = interaction.customId.replace('ticket_close_', '');
+      
+      const confirmRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('confirm_close')
+          .setLabel('Confirm Close')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('cancel_close')
+          .setLabel('Cancel')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      const confirmMsg = await interaction.reply({ 
+        content: 'Are you sure you want to close this ticket?', 
+        components: [confirmRow],
+        fetchReply: true,
+        flags: 64
+      });
+
+      // 30 second collector
+      const collector = confirmMsg.createMessageComponentCollector({ time: 30000 });
+      collector.on('collect', async i => {
+        if (i.customId === 'cancel_close') {
+          await i.update({ content: 'Action cancelled.', components: [] });
+          return;
+        }
+
+        if (i.customId === 'confirm_close') {
+          await i.update({ content: 'Ticket is getting closed', components: [] });
+          const thread = i.channel;
+
+          // Fetch game name for the log
+          const userRecord = db.prepare('SELECT game_name FROM registrations WHERE discord_id = ?').get(creatorId);
+          const gameName = userRecord ? userRecord.game_name : 'Unknown';
+
+          // Send log
+          const logChannel = i.client.channels.cache.get(ticketConfig.logChannelId);
+          if (logChannel) {
+            const logEmbed = new EmbedBuilder()
+              .setTitle('Ticket Closed')
+              .setColor('#E74C3C')
+              .setDescription(`
+                Ticket: <#${thread.id}>
+                Opened By: <@${creatorId}>
+                User ID: \`${creatorId}\`
+                Registered Name: \`${gameName}\`
+                Discord nickname: \`${interaction.member?.displayName || interaction.user.tag}\`
+
+                Closed By: <@${i.user.id}>
+                `)
+              .setTimestamp();
+            await logChannel.send({ embeds: [logEmbed] });
+          } else {
+            console.log('Could not find log channel to record ticket closure.');
+          }
+
+          // Remove owner, lock, and archive
+          await thread.members.remove(creatorId).catch(() => {});
+          await thread.setLocked(true);
+          await thread.setArchived(true);
+        }
+      });
+
+      collector.on('end', collected => {
+        if (collected.size === 0) {
+          interaction.editReply({ content: 'Close confirmation timed out.', components: [] }).catch(() => {});
+        }
+      });
+
+      return;
     }
+    
+
 
   } else if (interaction.isModalSubmit()){
     if (interaction.customId && interaction.customId.startsWith('modal:ask:')) {
@@ -3157,67 +3315,10 @@ I made this based on my own experience and what I know about the weapons. There 
 
 });
 
-const ticketCategoryId = process.env.TICKETS_CATEGORY_ID;
-
-const waitingTickets = new Map();
-client.on('channelCreate', async (channel) => {
-  if (!channel.isTextBased() || channel.type !== ChannelType.GuildText) return;
-
-  if (channel.parentId !== ticketCategoryId) return;
-  if (!channel.name.startsWith('ticket-')) return;
-
-  setTimeout(async () => {
-    try {
-      if (!channel.permissionsFor(channel.guild.members.me).has('SendMessages')) return;
-
-      const embed = new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle('How to Apply')
-        .setDescription(`
-### Answer these questions:
-1. Do you understand English?
-2. Do you agree to play **only** for Martlock?
-3. Can you join voice chat to hear calls? (no need to talk)
-### Send 2 full size screenshots:
-1. Character stats
-2. Faction warfare stats **:warning: your name should be visible :warning:**
-`)
-        .setImage('https://i.imgur.com/xmdGLU4.gif')
-        .setFooter(
-          { text: `After that, we'll get back to you as soon as possible. Thanks!` }
-        )
-
-
-
-    
-      await channel.send({
-        embeds: [
-          embed
-        ]
-      });
-
-    } catch (err) {
-      console.error(`❌ Failed to send follow-up message in ${channel.name}:`, err);
-    }
-  }, 4000);
-
-  // check for quick verify
-  for (const [userId, data] of waitingTickets) {
-    if (!channel.permissionOverwrites.cache.has(userId)) continue;
-    
-    clearTimeout(data.timeout);
-    data.resolve(channel.id);
-    waitingTickets.delete(userId);
-    break;
-  }
-
-});
-
 
 const ALLOWED_COMMANDS = new Set(['register','unregister','registerinfo','link','kb', 'registerhelp']),
       VISITOR_ROLE_ID = process.env.VISITOR_ROLE_ID,
       MESSAGE_USE_IN_ALLOWED_CHANNELS = `Please use register commands in the <#1247939976667205633> or <#1275402208845893644> channel.`;
-
 
 client.on('messageCreate', async (message) => {
 
