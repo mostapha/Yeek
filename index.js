@@ -103,10 +103,6 @@ db.prepare(`
   );
 `).run();
 
-// 2. Force insert row 1 with the value 2599. 
-// Using REPLACE guarantees it works whether the table was empty or not.
-db.prepare(`INSERT OR REPLACE INTO ticket_counter (id, current_count) VALUES (1, 2640)`).run();
-
 // After database initialization
 function cleanupOldComps() {
   try {
