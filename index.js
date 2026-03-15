@@ -102,13 +102,19 @@ db.prepare(`
     current_count INTEGER NOT NULL DEFAULT 0
   );
 `).run();
+
 // Initialize the counter row if it doesn't exist
-db.prepare(`INSERT OR IGNORE INTO ticket_counter (id, current_count) VALUES (2700, 0)`).run();
+// 1. Ensure the table exists
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS ticket_counter (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    current_count INTEGER NOT NULL DEFAULT 0
+  );
+`).run();
 
-db.prepare('DELETE FROM ticket_counter WHERE id = 2700').run();
-// Force the ticket counter to start the next ticket at 2600
-db.prepare('UPDATE ticket_counter SET current_count = 2599 WHERE id = 1').run();
-
+// 2. Force insert row 1 with the value 2599. 
+// Using REPLACE guarantees it works whether the table was empty or not.
+db.prepare(`INSERT OR REPLACE INTO ticket_counter (id, current_count) VALUES (1, 2599)`).run();
 
 // After database initialization
 function cleanupOldComps() {
