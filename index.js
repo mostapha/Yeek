@@ -1,5 +1,5 @@
 import { 
-  Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, AttachmentBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
+  Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, time, ModalBuilder, TextInputBuilder, TextInputStyle,
   StringSelectMenuBuilder, RESTJSONErrorCodes, Partials
 } from 'discord.js';
 import { config } from 'dotenv';
@@ -2727,6 +2727,13 @@ I made this based on my own experience and what I know about the weapons. There 
       );
 
 
+      // Assuming you just created a ticket channel, or have a message object
+      // You can pass a Date object, or a Unix timestamp in seconds
+      const ticketOpenDate = new Date(); // Or channel.createdAt
+
+      // Format it as relative time ('R' stands for Relative)
+      const relativeTime = time(ticketOpenDate, 'R');
+
       const how_to_apply_embed = new EmbedBuilder()
         .setColor(0x2ecc71)
         .setTitle('how to apply')
@@ -2738,8 +2745,11 @@ I made this based on my own experience and what I know about the weapons. There 
 ### Send 2 full size screenshots:
 1. Character stats
 2. Faction warfare stats :warning: your name should be visible :warning:
+
+⏳ Ticket age: ${relativeTime}
 `)
-        .setImage('https://i.imgur.com/xmdGLU4.gif');
+        .setImage('https://i.imgur.com/xmdGLU4.gif')
+        .setTimestamp();
         
       // Send initial thread message and ping roles
       await thread.send({ 
