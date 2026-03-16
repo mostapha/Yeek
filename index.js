@@ -2745,8 +2745,7 @@ I made this based on my own experience and what I know about the weapons. There 
       await thread.send({ 
         content: `
 Hello and welcome <@${interaction.user.id}>! 👋
-In this ticket, you can send us the 2 screenshots and answer the questions.
-After that, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will give you the appropriate roles.
+Please follow the "How to apply" instructions below by sending your screenshots and answers in this ticket. Once completed, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will sort out your roles!
         `,
         components: [closeRow] ,
         embeds: [how_to_apply_embed]
