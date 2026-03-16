@@ -2180,11 +2180,11 @@ I made this based on my own experience and what I know about the weapons. There 
             const rawData = fs.readFileSync(ZVZ_ROLES_DB_FILE_PATH, 'utf8');
             db = JSON.parse(rawData);
           } else {
-            return interaction.reply({ content: 'Database file not found. The scanner might not have run yet.', ephemeral: true });
+            return interaction.reply({ content: 'Database file not found. The scanner might not have run yet.', flags: 64 });
           }
         } catch (error) {
           console.error('Error reading database:', error);
-          return interaction.reply({ content: 'Database is currently updating. Please try again in a few seconds.', ephemeral: true });
+          return interaction.reply({ content: 'Database is currently updating. Please try again in a few seconds.', flags: 64 });
         }
 
         const userData = db[targetUser.id];
@@ -2192,7 +2192,7 @@ I made this based on my own experience and what I know about the weapons. There 
         if (!userData) {
           return interaction.reply({ 
             content: `No signup data found for **${targetUser.username}**. They haven't signed up for any recent masses or database is not updated yet.`, 
-            ephemeral: true 
+            flags: 64 
           });
         }
 
@@ -2337,7 +2337,7 @@ I made this based on my own experience and what I know about the weapons. There 
         );
 
         await interaction.channel.send({ embeds: [embed], components: [row] });
-        await interaction.reply({ content: 'Panel spawned.', ephemeral: true });
+        await interaction.reply({ content: 'Panel spawned.', flags: 64 });
         return;
       }
     }
@@ -2692,11 +2692,11 @@ I made this based on my own experience and what I know about the weapons. There 
       if (!userRecord) {
         return interaction.reply({ 
           content: 'You must be registered to open a ticket. Run `/register` first.', 
-          ephemeral: true 
+          flags: 64 
         });
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
 
       // Get next ticket number
       const getCount = db.prepare('SELECT current_count FROM ticket_counter WHERE id = 1').get();
@@ -3889,10 +3889,10 @@ client.on('interactionCreate', async (interaction) => {
 
   if (member.roles.cache.has(roleIdToToggle)) {
     await member.roles.remove(roleIdToToggle);
-    await interaction.followUp({ content: `<@&${roleIdToToggle}> role removed from you`, ephemeral: true });
+    await interaction.followUp({ content: `<@&${roleIdToToggle}> role removed from you`, flags: 64 });
   } else {
     await member.roles.add(roleIdToToggle);
-    await interaction.followUp({ content: `<@&${roleIdToToggle}> role added to you`, ephemeral: true });
+    await interaction.followUp({ content: `<@&${roleIdToToggle}> role added to you`, flags: 64 });
   }
 
   // Generate the updated embed using our helper function
