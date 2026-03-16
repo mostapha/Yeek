@@ -1812,8 +1812,31 @@ I made this based on my own experience and what I know about the weapons. There 
           const parentChannel = interaction.channel.parent || await interaction.guild.channels.fetch(interaction.channel.parentId);
           const compMessage = await parentChannel.messages.fetch(interaction.channel.id);
     
-          // Extract mentioned user IDs from the comp message
-          const mentionedUserIds = new Set(compMessage.mentions.users.map(user => user.id));
+          // === EXTRACT MENTIONS (Text + Embed Fallback) ===
+          const mentionedUserIds = new Set();
+          
+          // 1. Add any mentions Discord natively parsed
+          compMessage.mentions.users.forEach(user => mentionedUserIds.add(user.id));
+          
+          // 2. Regex to catch raw <@id> or <@!id> tags 
+          const mentionRegex = /<@!?(\d+)>/g;
+          let match;
+
+          // Check normal message content
+          if (compMessage.content) {
+            while ((match = mentionRegex.exec(compMessage.content)) !== null) {
+              mentionedUserIds.add(match[1]); // match[1] is the raw ID
+            }
+          }
+
+          // Check embed description if an embed exists
+          if (compMessage.embeds && compMessage.embeds.length > 0 && compMessage.embeds[0].description) {
+            const embedDesc = compMessage.embeds[0].description;
+            while ((match = mentionRegex.exec(embedDesc)) !== null) {
+              mentionedUserIds.add(match[1]);
+            }
+          }
+          // ================================================
     
           // Get signed up player IDs from comp slots
           const signedUpUserIds = new Set(
@@ -1845,31 +1868,45 @@ I made this based on my own experience and what I know about the weapons. There 
             }
           }
 
+          // === BUILD THE EMBED ===
+          const embed = new EmbedBuilder()
+            .setTitle('Voice Chat Check');
+            
+          let embedDescription = '';
 
-          let response = '';
-          if(inVoiceNotMentioned.length > 0 || signedUpNotInVoice.length > 0){
-            response += `I checked voice chat and the people who signed up, here are the results:\n`
+          if (inVoiceNotMentioned.length > 0 || signedUpNotInVoice.length > 0) {
+            embed.setColor(0xFFA500); // Orange
+            embedDescription += `I checked voice chat and the people who signed up. Here are the results:\n`;
+            
             if (inVoiceNotMentioned.length > 0) {
-            // Not signed section
-              response += '### Not signed\n';
+              embedDescription += '### Not signed\n';
               inVoiceNotMentioned.forEach(id => {
-                response += `<:CF11:1408080636878524606> <@${id}>\n`;
+                embedDescription += `- <@${id}>\n`;
               });
+              embedDescription += '\n';
             }
-    
 
             if (signedUpNotInVoice.length > 0) {
-              response += '### Not in Voice\n';
+              embedDescription += '### Not in Voice\n';
               signedUpNotInVoice.forEach(id => {
-                response += `<:CF11:1408080636878524606> <@${id}>\n`;
+                embedDescription += `- <@${id}>\n`;
               });
             }
 
           } else {
-            response += `I don't see any problems!`;
+            embed.setColor(0x00FF00); // Green
+            embedDescription += `I don't see any problems!`;
           }
 
-          await interaction.editReply({ content: response });
+          if (embedDescription.length > 4096) {
+            await interaction.editReply({ 
+              content: '⚠️ The result is longer than what Discord allows in a single embed! There are too many users to display.' 
+            });
+            return;
+          }
+
+          embed.setDescription(embedDescription);
+          await interaction.editReply({ embeds: [embed] });
     
         } catch (err) {
           console.error('Error checking voice members:', err);
