@@ -2811,6 +2811,10 @@ After that, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will give you the appropri
           const userRecord = db.prepare('SELECT game_name FROM registrations WHERE discord_id = ?').get(creatorId);
           const gameName = userRecord ? userRecord.game_name : 'Unknown';
 
+          // Fetch the ticket creator's actual Discord member object to get their current nickname
+          const creatorMember = await i.guild.members.fetch(creatorId).catch(() => null);
+          const creatorDiscordName = creatorMember ? creatorMember.displayName : 'Unknown / Left Server';
+
           // Send log
           const logChannel = i.client.channels.cache.get(ticketConfig.logChannelId);
           if (logChannel) {
@@ -2822,7 +2826,7 @@ After that, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will give you the appropri
                 Opened By: <@${creatorId}>
                 User ID: \`${creatorId}\`
                 Registered Name: \`${gameName}\`
-                Discord nickname: \`${interaction.member?.displayName || interaction.user.tag}\`
+                Discord nickname: \`${creatorDiscordName}\`
 
                 Closed By: <@${i.user.id}>
                 `)
