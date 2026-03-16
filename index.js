@@ -2717,9 +2717,6 @@ I made this based on my own experience and what I know about the weapons. There 
         reason: 'User opened a ticket'
       });
 
-      // Add the user who clicked
-      await thread.members.add(interaction.user.id);
-
       // Build the close button
       const closeRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -2747,7 +2744,7 @@ I made this based on my own experience and what I know about the weapons. There 
       // Send initial thread message and ping roles
       await thread.send({ 
         content: `
-Hello and welcome ${userRecord.game_name}! :wave:
+Hello and welcome <@${interaction.user.id}>! 👋
 In this ticket, you can send us the 2 screenshots and answer the questions.
 After that, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will give you the appropriate roles.
         `,
@@ -2814,6 +2811,14 @@ After that, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will give you the appropri
           // Fetch the ticket creator's actual Discord member object to get their current nickname
           const creatorMember = await i.guild.members.fetch(creatorId).catch(() => null);
           const creatorDiscordName = creatorMember ? creatorMember.displayName : 'Unknown / Left Server';
+
+          await interaction.channel.send({ 
+            embeds: [
+              new EmbedBuilder()
+                .setColor(0xF1C40F)
+                .setDescription(`Ticket closed by <@${i.user.id}>`)
+            ]
+          });
 
           // Send log
           const logChannel = i.client.channels.cache.get(ticketConfig.logChannelId);
