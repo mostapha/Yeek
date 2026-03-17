@@ -2733,6 +2733,23 @@ I made this based on my own experience and what I know about the weapons. There 
         });
       }
 
+      // Prevent already verified users from opening a ticket
+      const hasHighlander = interaction.member.roles.cache.has(MEMBER_ROLE_ID);
+      const hasEolguard = interaction.member.roles.cache.has(EOLMEMBER_ROLE_ID);
+
+      // If they have BOTH roles, stop them from opening a ticket
+      if (hasHighlander && hasEolguard) {
+        const verifiedEmbed = new EmbedBuilder()
+          .setColor(0x2ECC71) // A nice success green
+          .setTitle('You are already verified')
+          .setDescription(`You are already fully verified. There is no need to open a new verification ticket!`);
+
+        return interaction.reply({
+          embeds: [verifiedEmbed],
+          flags: 64 // Ephemeral: only the user sees this
+        });
+      }
+
       await interaction.deferReply({ flags: 64 });
 
       // Get next ticket number
