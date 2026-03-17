@@ -2782,12 +2782,8 @@ I made this based on my own experience and what I know about the weapons. There 
       );
 
 
-      // Assuming you just created a ticket channel, or have a message object
-      // You can pass a Date object, or a Unix timestamp in seconds
-      const ticketOpenDate = new Date(); // Or channel.createdAt
-
       // Format it as relative time ('R' stands for Relative)
-      const relativeTime = time(ticketOpenDate, 'R');
+      const relativeTime = time(thread.createdAt, 'R');
 
       const how_to_apply_embed = new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -2836,6 +2832,8 @@ Please follow the "How to apply" instructions below by sending your screenshots 
       await interaction.editReply({ content: `Ticket created: <#${thread.id}>` });
       return;
     } else if (interaction.customId.startsWith('ticket_close_')) {
+      if (interaction.replied || interaction.deferred) return;
+
       const creatorId = interaction.customId.replace('ticket_close_', '');
       
       const confirmRow = new ActionRowBuilder().addComponents(
@@ -2849,34 +2847,59 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           .setStyle(ButtonStyle.Secondary)
       );
 
-      const confirmMsg = await interaction.reply({ 
-        content: 'Are you sure you want to close this ticket?', 
-        components: [confirmRow],
-        fetchReply: true,
-        flags: 64
-      });
+      const closeRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`ticket_close_${creatorId}`) 
+          .setLabel('Close Ticket')
+          .setEmoji('🔒')
+          .setStyle(ButtonStyle.Secondary)
+      );
 
-      // 30 second collector
-      const collector = confirmMsg.createMessageComponentCollector({ time: 30000 });
+      try {
+        await interaction.update({ components: [confirmRow] });
+      } catch (error) {
+        if (error.code === 10062 || error.message.includes('acknowledged')) return;
+        console.error('Ticket close button error:', error);
+        return;
+      }
+
+      const message = interaction.message;
+      const collector = message.createMessageComponentCollector({ time: 30000 });
+
       collector.on('collect', async i => {
+        if (i.replied || i.deferred) return;
+
         if (i.customId === 'cancel_close') {
-          await i.update({ content: 'Action cancelled.', components: [] });
+          // STOP THE COLLECTOR IMMEDIATELY
+          collector.stop('cancelled'); 
+          
+          try {
+            await i.update({ components: [closeRow] });
+          } catch (e) {
+            console.error('Error reverting buttons after cancellation:', e);
+          }
           return;
         }
 
         if (i.customId === 'confirm_close') {
-          await i.update({ content: 'Ticket is getting closed', components: [] });
+          // STOP THE COLLECTOR IMMEDIATELY
+          collector.stop('confirmed');
+          
+          try {
+            await i.update({ components: [closeRow] });
+          } catch (e) {
+            console.error('Error reverting buttons after confirmation:', e);
+          }
+          
           const thread = i.channel;
 
-          // Fetch game name for the log
           const userRecord = db.prepare('SELECT game_name FROM registrations WHERE discord_id = ?').get(creatorId);
           const gameName = userRecord ? userRecord.game_name : 'Unknown';
 
-          // Fetch the ticket creator's actual Discord member object to get their current nickname
           const creatorMember = await i.guild.members.fetch(creatorId).catch(() => null);
           const creatorDiscordName = creatorMember ? creatorMember.displayName : 'Unknown / Left Server';
 
-          await interaction.channel.send({ 
+          await thread.send({ 
             embeds: [
               new EmbedBuilder()
                 .setColor(0xF1C40F)
@@ -2884,7 +2907,6 @@ Please follow the "How to apply" instructions below by sending your screenshots 
             ]
           });
 
-          // Send log
           const logChannel = i.client.channels.cache.get(ticketConfig.logChannelId);
           if (logChannel) {
             const logEmbed = new EmbedBuilder()
@@ -2901,20 +2923,18 @@ Please follow the "How to apply" instructions below by sending your screenshots 
                 `)
               .setTimestamp();
             await logChannel.send({ embeds: [logEmbed] });
-          } else {
-            console.log('Could not find log channel to record ticket closure.');
           }
 
-          // Remove owner, lock, and archive
           await thread.members.remove(creatorId).catch(() => {});
           await thread.setLocked(true);
           await thread.setArchived(true);
         }
       });
 
-      collector.on('end', collected => {
-        if (collected.size === 0) {
-          interaction.editReply({ content: 'Close confirmation timed out.', components: [] }).catch(() => {});
+      // ONLY revert the buttons if the reason for the collector ending was the 30s timer running out
+      collector.on('end', async (collected, reason) => {
+        if (reason === 'time') {
+          await message.edit({ components: [closeRow] }).catch(() => {});
         }
       });
 
