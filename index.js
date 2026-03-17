@@ -2768,7 +2768,8 @@ I made this based on my own experience and what I know about the weapons. There 
       const thread = await targetChannel.threads.create({
         name: ticketName,
         type: ChannelType.PrivateThread,
-        reason: 'User opened a ticket'
+        reason: 'User opened a ticket',
+        invitable: false
       });
 
       // Build the close button
