@@ -1883,7 +1883,6 @@ I made this based on my own experience and what I know about the weapons. There 
               inVoiceNotMentioned.forEach(id => {
                 embedDescription += `- <@${id}>\n`;
               });
-              embedDescription += '\n';
             }
 
             if (signedUpNotInVoice.length > 0) {
