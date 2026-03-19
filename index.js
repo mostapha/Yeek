@@ -1308,7 +1308,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
       embeds: [
         new EmbedBuilder()
           .setColor('#2ECC71')
-          .setTitle('Registration Successful')
+          // .setTitle('Registration Successful')
           .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
       ],
       components: (isSelfRegister && !hasMemberRoles) ? [tickets_channel_url_row] : [] // Only show ticket button if self-registering
@@ -1434,7 +1434,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
           embeds: [
             new EmbedBuilder()
               .setColor('#2ECC71')
-              .setTitle('Unregistration Successful')
+              // .setTitle('Unregistration Successful')
               .setDescription(`The name ${existing.game_name} is no longer linked to <@${targetId}>'s account.`)
           ],
           components: []
@@ -1449,7 +1449,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
             embeds: [
               new EmbedBuilder()
                 .setColor('#2ECC71')
-                .setTitle('Unregistration Successful')
+                // .setTitle('Unregistration Successful')
                 .setDescription(`The name ${existing.game_name} is no longer linked to <@${targetId}>'s account, but I was missing permissions to reset roles or nickname.`)
             ],
             components: []
@@ -1461,7 +1461,7 @@ async function executeUnregisterLogic({ source, targetUser, executorMember }) {
             embeds: [
               new EmbedBuilder()
                 .setColor('#2ECC71')
-                .setTitle('Unregistration Successful')
+                // .setTitle('Unregistration Successful')
                 .setDescription(`The name ${existing.game_name} is no longer linked to <@${targetId}>'s account (but couldn't update Discord member data).`)
             ],
             components: []
@@ -1783,84 +1783,61 @@ I made this based on my own experience and what I know about the weapons. There 
         return;
       }
       case 'comp_check_voice': {
-
-        await interaction.deferReply({ flags: 64 });
+        await interaction.deferReply({ flags: 64 }); // Ephemeral
 
         // Must be used inside a comp thread
-        if (!interaction.channel || !interaction.channel.isThread()) {
-          await interaction.editReply({ content: 'This command must be used inside a comp thread.' });
-          return;
+        if (!interaction.channel?.isThread()) {
+          return interaction.editReply({ content: 'This command must be used inside a comp thread.' });
         }
 
         // Find comp by thread id
         const comp = getCompByThreadId(interaction.channel.id);
         if (!comp) {
-          await interaction.editReply({ content: 'This thread is not linked to a comp.' });
-          return;
+          return interaction.editReply({ content: 'This thread is not linked to a comp.' });
         }
 
         try {
-
           const voiceChannelId = interaction.member.voice?.channelId;
-
           if (!voiceChannelId) {
-            await interaction.editReply({ content: 'You must be in a voice channel to use this command.' });
-            return;
+            return interaction.editReply({ content: 'You must be in a voice channel to use this command.' });
           }
-    
-          // Fetch the comp message directly using thread.id (which equals message.id)
-          const parentChannel = interaction.channel.parent || await interaction.guild.channels.fetch(interaction.channel.parentId);
-          const compMessage = await parentChannel.messages.fetch(interaction.channel.id);
-    
-          // === EXTRACT MENTIONS (Text + Embed Fallback) ===
-          const mentionedUserIds = new Set();
-          
-          // 1. Add any mentions Discord natively parsed
-          compMessage.mentions.users.forEach(user => mentionedUserIds.add(user.id));
-          
-          // 2. Regex to catch raw <@id> or <@!id> tags 
+
+          // === FETCH STARTER MESSAGE DIRECLTY ===
+          // No need to fetch the parent channel first.
+          const compMessage = await interaction.channel.fetchStarterMessage();
+
+          // === EXTRACT MENTIONS ===
+          const mentionedUserIds = new Set(compMessage.mentions.users.keys());
           const mentionRegex = /<@!?(\d+)>/g;
-          let match;
 
-          // Check normal message content
-          if (compMessage.content) {
-            while ((match = mentionRegex.exec(compMessage.content)) !== null) {
-              mentionedUserIds.add(match[1]); // match[1] is the raw ID
-            }
-          }
-
-          // Check embed description if an embed exists
-          if (compMessage.embeds && compMessage.embeds.length > 0 && compMessage.embeds[0].description) {
-            const embedDesc = compMessage.embeds[0].description;
-            while ((match = mentionRegex.exec(embedDesc)) !== null) {
+          // Helper function to extract IDs using matchAll
+          const extractMentions = (text) => {
+            if (!text) return;
+            for (const match of text.matchAll(mentionRegex)) {
               mentionedUserIds.add(match[1]);
             }
-          }
-          // ================================================
-    
-          // Get signed up player IDs from comp slots
+          };
+
+          extractMentions(compMessage.content);
+          extractMentions(compMessage.embeds?.[0]?.description);
+
+          // === GATHER IDs ===
           const signedUpUserIds = new Set(
-            comp.slots
-              .filter(slot => slot.playerId)
-              .map(slot => slot.playerId)
-          );
-    
-          // Get current voice channel members (now from freshly fetched channel)
-          const voiceStates = interaction.guild.voiceStates.cache.filter(
-            vs => vs.channelId === voiceChannelId
+            comp.slots.filter(slot => slot.playerId).map(slot => slot.playerId)
           );
 
-          const voiceMemberIds = new Set(voiceStates.map(vs => vs.id));
+          // Get voice members in the target channel
+          const voiceStates = interaction.guild.voiceStates.cache.filter(vs => vs.channelId === voiceChannelId);
+          const voiceMemberIds = new Set(voiceStates.keys());
 
-          // Find users in voice but not mentioned
+          // === COMPARE DATA ===
           const inVoiceNotMentioned = [];
-          voiceStates.forEach(vs => {
-            if (!mentionedUserIds.has(vs.id) && !vs.member?.user.bot) {
-              inVoiceNotMentioned.push(vs.id);
+          for (const [id, vs] of voiceStates) {
+            if (!mentionedUserIds.has(id) && !vs.member?.user.bot) {
+              inVoiceNotMentioned.push(id);
             }
-          });
-    
-          // Find users signed up but not in voice
+          }
+
           const signedUpNotInVoice = [];
           for (const userId of signedUpUserIds) {
             if (!voiceMemberIds.has(userId)) {
@@ -1869,49 +1846,40 @@ I made this based on my own experience and what I know about the weapons. There 
           }
 
           // === BUILD THE EMBED ===
-          const embed = new EmbedBuilder()
-            .setTitle('Voice Chat Check');
-            
+          const embed = new EmbedBuilder().setTitle('Voice Chat Check');
           let embedDescription = '';
 
           if (inVoiceNotMentioned.length > 0 || signedUpNotInVoice.length > 0) {
             embed.setColor(0xFFA500); // Orange
             embedDescription += `I checked voice chat and the people who signed up. Here are the results:\n`;
             
+            // Use map().join() instead of looping and concatenating strings
             if (inVoiceNotMentioned.length > 0) {
-              embedDescription += '### Not signed\n';
-              inVoiceNotMentioned.forEach(id => {
-                embedDescription += `- <@${id}>\n`;
-              });
+              embedDescription += `\n### Not signed\n${inVoiceNotMentioned.map(id => `- <@${id}>`).join('\n')}`;
             }
 
             if (signedUpNotInVoice.length > 0) {
-              embedDescription += '### Not in Voice\n';
-              signedUpNotInVoice.forEach(id => {
-                embedDescription += `- <@${id}>\n`;
-              });
+              embedDescription += `\n### Not in Voice\n${signedUpNotInVoice.map(id => `- <@${id}>`).join('\n')}`;
             }
-
           } else {
             embed.setColor(0x00FF00); // Green
             embedDescription += `I don't see any problems!`;
           }
 
           if (embedDescription.length > 4096) {
-            await interaction.editReply({ 
+            return interaction.editReply({ 
               content: '⚠️ The result is longer than what Discord allows in a single embed! There are too many users to display.' 
             });
-            return;
           }
 
           embed.setDescription(embedDescription);
           await interaction.editReply({ embeds: [embed] });
-    
+
         } catch (err) {
           console.error('Error checking voice members:', err);
           await interaction.editReply({ content: 'An error occurred while checking voice members.' });
         }
-  
+
         break;
       }
       // START NEW COMMAND HANDLER
@@ -1919,83 +1887,81 @@ I made this based on my own experience and what I know about the weapons. There 
         await interaction.deferReply({ flags: 64 }); // Ephemeral defer
 
         // 1. Thread & Comp Context Check
-        if (!interaction.channel || !interaction.channel.isThread()) {
-          await interaction.editReply({ content: 'This command must be used inside the comp thread.' });
-          return;
+        if (!interaction.channel?.isThread()) {
+          return interaction.editReply({ content: 'This command must be used inside the comp thread.' });
         }
 
         const comp = getCompByThreadId(interaction.channel.id);
         if (!comp) {
-          await interaction.editReply({ content: 'This thread is not linked to a comp.' });
-          return;
+          return interaction.editReply({ content: 'This thread is not linked to a comp.' });
         }
 
         // 2. Permission Check
-        // Allow: Super Admin
-        const _isAdminOrMod = isAdminOrMod(interaction.member);
-        if (!_isAdminOrMod) {
-          await interaction.editReply({ content: 'Only the super admin can use this command.' });
-          return;
+        if (!isAdminOrMod(interaction.member)) {
+          return interaction.editReply({ content: 'Only the super admin can use this command.' });
         }
 
         // 3. Get Role and Targets
         const targetRole = interaction.options.getRole('role', true);
         
-        // Safety check: Don't allow giving dangerous permissions if logic fails elsewhere, 
-        // though Discord handles hierarchy, it's good to be safe.
+        // Safety check: hierarchy
         if (targetRole.managed || targetRole.position >= interaction.guild.members.me.roles.highest.position) {
-          await interaction.editReply({ content: `I cannot assign the role ${targetRole} because it is higher than or equal to my highest role.` });
-          return;
+          return interaction.editReply({ content: `I cannot assign the role ${targetRole} because it is higher than or equal to my highest role.` });
         }
 
-        const signedUpUserIds = new Set(
-          comp.slots
-            .filter(slot => slot.playerId)
-            .map(slot => slot.playerId)
-        );
+        // Get unique signed up user IDs
+        const signedUpUserIds = [...new Set(
+          comp.slots.filter(slot => slot.playerId).map(slot => slot.playerId)
+        )];
 
-        if (signedUpUserIds.size === 0) {
-          await interaction.editReply({ content: 'No users are currently signed up in this comp.' });
-          return;
+        if (signedUpUserIds.length === 0) {
+          return interaction.editReply({ content: 'No users are currently signed up in this comp.' });
         }
+
+        await interaction.editReply({ content: `Fetching users and assigning ${targetRole} to ${signedUpUserIds.length} members...` });
+
+        // === THE PERFORMANCE FIX: Bulk Fetch All Members at Once ===
+        // This makes 1 API call instead of N calls.
+        const members = await interaction.guild.members.fetch({ user: signedUpUserIds }).catch(() => new Map());
 
         // 4. Assign Roles
-        let successCount = 0;
-        let failCount = 0;
+        let addedCount = 0;
+        let alreadyHadCount = 0;
         const failedUsers = [];
 
-        await interaction.editReply({ content: `Assigning ${targetRole} to ${signedUpUserIds.size} users...` });
-
+        // Note: We intentionally keep the sequential `for...of` loop for role additions.
+        // Using Promise.all() here could trigger Discord's strict rate limits for role modifications.
         for (const userId of signedUpUserIds) {
           try {
-            const member = await interaction.guild.members.fetch(userId).catch(() => null);
+            const member = members.get(userId);
+            
+            // If member wasn't found in the bulk fetch, they likely left the server
             if (!member) {
-              failCount++;
-              continue; // Member left guild
+              failedUsers.push(`<@${userId}> (Left server or invalid)`);
+              continue; 
             }
 
             if (member.roles.cache.has(targetRole.id)) {
-              // Already has role, count as success effectively
-              successCount++;
+              alreadyHadCount++;
             } else {
               await member.roles.add(targetRole, `Comp bulk add by ${interaction.user.tag}`);
-              successCount++;
+              addedCount++;
             }
           } catch (err) {
             console.error(`Failed to add role to ${userId}`, err);
-            failCount++;
-            failedUsers.push(`<@${userId}>`);
+            failedUsers.push(`<@${userId}> (API Error)`);
           }
         }
 
         // 5. Report Results
-        let msg = `✅ **Operation Complete**\nRole ${targetRole} assigned to **${successCount}** users.`;
+        let msg = `✅ **Operation Complete**\nSuccessfully added ${targetRole} to **${addedCount}** users.`;
         
-        if (failCount > 0) {
-          msg += `\n⚠️ Failed to assign to **${failCount}** users.`;
-          if (failedUsers.length > 0) {
-            msg += `\nFailed users (check hierarchy or bots): ${failedUsers.join(', ')}`;
-          }
+        if (alreadyHadCount > 0) {
+          msg += `\nℹ️ **${alreadyHadCount}** users already had the role.`;
+        }
+
+        if (failedUsers.length > 0) {
+          msg += `\n⚠️ **Failed to assign to ${failedUsers.length} users:**\n${failedUsers.join('\n')}`;
         }
 
         await interaction.editReply({ content: msg });
