@@ -1,6 +1,11 @@
 import { 
   Client, GatewayIntentBits, ButtonBuilder, ButtonStyle, ActionRowBuilder, Events, ChannelType, EmbedBuilder, time, ModalBuilder, TextInputBuilder, TextInputStyle,
-  StringSelectMenuBuilder, RESTJSONErrorCodes, Partials
+  StringSelectMenuBuilder, RESTJSONErrorCodes, Partials,
+  ContainerBuilder, 
+  TextDisplayBuilder, 
+  MessageFlags,
+  ThumbnailBuilder,
+  MediaGalleryBuilder
 } from 'discord.js';
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
@@ -3906,6 +3911,39 @@ function generateRoleSelectionEmbed(guild) {
 
 // --- SETUP COMMAND ---
 client.on('messageCreate', async (message) => {
+
+  if (message.content === '!yo') {
+
+    // 1. Create the Container (Do NOT attach the action row here)
+    const container = new ContainerBuilder()
+      .setAccentColor(0x57F287) 
+      .addTextDisplayComponents(
+        new TextDisplayBuilder()
+          .setContent('## Verification tickets\nThe battlefield is calling, and Martlock is bringing the chaos. We hold the line, we take the lands, and we leave the enemy in the dirt. Ready to drop bodies and be part of an unstoppable force?')
+      )
+      .addMediaGalleryComponents(
+        new MediaGalleryBuilder()
+          .addItems({ media: { url: 'https://i.imgur.com/AD03D9P.png' } })
+      );
+
+    // 2. Build your Action Row separately
+    const buttonRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('ticket_open')
+        .setLabel('Open Verification Ticket')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    // 3. Send to the channel normally instead of replying
+    await message.channel.send({
+      components: [container, buttonRow], // Container on top, buttons below
+      flags: MessageFlags.IsComponentsV2
+    });
+
+    await message.delete().catch(console.error);
+    
+  }
+
   if (message.content === '!setup-roles' && message.member.permissions.has('Administrator')) {
     await message.guild.members.fetch(); 
 
