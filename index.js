@@ -454,6 +454,21 @@ async function addRegistrationToDB(targetDiscordId, player, registeredById) {
   return { success: true };
 }
 
+async function updateRegistrationInDB(targetDiscordId, player, updatedById) {
+  try {
+    const stmt = db.prepare(`
+      UPDATE registrations 
+      SET game_name = ?, game_id = ?, registered_by = ?, registered_at = datetime('now')
+      WHERE discord_id = ?
+    `);
+    stmt.run(player.Name, player.Id, updatedById, targetDiscordId);
+    return { success: true };
+  } catch (err) {
+    console.error('DB update failed', err);
+    return { success: false, error: 'DB update failed' };
+  }
+}
+
 
 function removeRegistrationByDiscordId(discordId) {
   const stmt = db.prepare(`DELETE FROM registrations WHERE discord_id = ?`);
@@ -1184,36 +1199,26 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
     });
   }
 
-  // 3. DB Checks
-  // A) Is target Discord already registered?
-  const user_already_registered = checkDiscordRegistration(targetId);
-  if (user_already_registered) {
-    await doReact('⚠️');
-    if (isSelfRegister) {
-      if (user_already_registered.game_name.toLowerCase() === gameName.toLowerCase()) {
-        return doReply({
-          embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(`You are already registered as **${user_already_registered.game_name}**, you don't need to do it again. To update your name you can use */update_name* command.`)]
-        });
-      }
-      return doReply({
-        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Your account is linked to **${user_already_registered.game_name}**. If you want to change it, use the command \`/unregister\` first`)]
-      });
-    } else {
-      return doReply({
-        embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`The user <@${targetId}> is already registered as **${user_already_registered.game_name}**.`)]
-      });
-    }
-  }
-
-  // B) Is Game Name taken?
+  // 3. Name Availability Check (DB)
   const duplicate_game_name = checkGameRegistration(gameName);
   if (duplicate_game_name) {
+    if (duplicate_game_name.discord_id === targetId) {
+      await doReact('⚠️');
+      const infoDesc = isSelfRegister 
+        ? `You are already registered as **${duplicate_game_name.game_name}**. No need to do it again.`
+        : `The user <@${targetId}> is already registered as **${duplicate_game_name.game_name}**.`;
+      return doReply({
+        embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(infoDesc)],
+        flags: 64
+      });
+    }
+    
     return doReply({
       embeds: [
         new EmbedBuilder()
           .setColor('#E74C3C')
           .setTitle('Register error')
-          .setDescription(`${duplicate_game_name.game_name} is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`)
+          .setDescription(`**${duplicate_game_name.game_name}** is already registered by <@${duplicate_game_name.discord_id}>. ${callerIsAdmin ? '' : 'Contact a moderator if this is your character name.'}`)
       ],
       flags: 64
     });
@@ -1233,25 +1238,15 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
   }
 
   const players = apiJson?.players || [];
-
   const targetName = gameName.toLowerCase();
   let match = null;
   for (const p of players) {
-  // Check name match first to avoid checking fame unnecessarily
     if (p.Name.toLowerCase() === targetName) {
-    // If we find a player with Fame, return immediately (Best Case)
-      if (p.KillFame !== 0) {
-        match = p;
-        break; 
-      }
-      // If we haven't found a match yet, store this as a fallback (0 Fame)
-      if (!match) {
-        match = p;
-      }
+      if (p.KillFame !== 0) { match = p; break; }
+      if (!match) match = p;
     }
   }
   const player = match;
-
 
   if (!player) {
     await doReact('⚠️');
@@ -1266,73 +1261,125 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
     });
   }
 
-  // 5. Execution (DB & Discord)
-  let extraInfo = '';
-  const result = await addRegistrationToDB(targetId, player, executorId);
+  // 5. Account Overwrite Check (DB)
+  const user_already_registered = checkDiscordRegistration(targetId);
+  let isUpdating = false; 
 
-  
-  let hasMemberRoles;
-  if (result.success) {
-    try {
-      const guildMember = await source.guild.members.fetch(targetId);
+  if (user_already_registered) {
+    const confirmButton = new ButtonBuilder().setCustomId('confirm_update').setLabel('Confirm Update').setStyle(ButtonStyle.Success);
+    const cancelButton = new ButtonBuilder().setCustomId('cancel_update').setLabel('Cancel').setStyle(ButtonStyle.Danger);
+    const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
 
-      // update hasMemberRoles
-      hasMemberRoles = guildMember.roles.cache.has(MEMBER_ROLE_ID) && guildMember.roles.cache.has(EOLMEMBER_ROLE_ID);
-
-      // Assign role
-      try {
-        if(VISITOR_ROLE_ID) await guildMember.roles.add(VISITOR_ROLE_ID, `Account registered`);
-      } catch (err) {
-        console.error('Failed to assign visitor role:', err);
-      }
-
-      // Set Nickname
-      await guildMember.setNickname(buildNickname(player), `Account registered`);
-    } catch (err) {
-      if (err.code === RESTJSONErrorCodes.MissingPermissions) {
-        extraInfo = `Failed to set nickname: ${err.message}`;
-      } else {
-        extraInfo = `Something went wrong though, check logs!`;
-        console.error('Failed to set nickname:', err);
-      }
-    }
-
-    const tickets_channel_url = new ButtonBuilder()
-      .setLabel('Verification Tickets')
-      .setURL('https://discord.com/channels/1247740449959968870/1383460322911715459') 
-      .setStyle(ButtonStyle.Link); 
-
-    // 2. Put the Button in a Row
-    const tickets_channel_url_row = new ActionRowBuilder().addComponents(tickets_channel_url);
-    
-          
-    await doReact('✅');
-    
-    // Send the message
-    const prompt = await doReply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor('#2ECC71')
-          // .setTitle('Registration Successful')
-          .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo ? `(${extraInfo})` : ''}`)
+    const promptMsg = await doReply({
+      embeds: [new EmbedBuilder()
+        .setColor('#F1C40F')
+        .setTitle('Update Account')
+        .setDescription(`The account <@${targetId}> is currently linked to the name \`${user_already_registered.game_name}\`.\n\nDo you want to change it and link to \`${gameName}\`?\n\n⚠️ This will also purge ${isSelfRegister ? 'your' : 'their'} roles and nickname, and ${isSelfRegister ? 'you' : 'they'} will need to re-verify in the tickets channel.`)
       ],
-      components: (isSelfRegister && !hasMemberRoles) ? [tickets_channel_url_row] : [] // Only show ticket button if self-registering
+      components: [row]
     });
 
-    // 7. Collector Logic for Ticket (Only if self-register)
-    if (isSelfRegister && !hasMemberRoles) {
-      setTimeout(async () => {
-        if(prompt.editable) await prompt.edit({ components: [] }).catch(() => {});
-      }, 15000);
-    }
+    try {
+      const confirmation = await promptMsg.awaitMessageComponent({
+        filter: i => i.user.id === executorId && ['confirm_update', 'cancel_update'].includes(i.customId),
+        time: 30000
+      });
 
-  } else {
-    // DB Failed
+      if (confirmation.customId === 'cancel_update') {
+        await confirmation.update({ 
+          embeds: [new EmbedBuilder().setColor('#E74C3C').setDescription('Registration update cancelled.')], components: [] 
+        });
+        return; 
+      }
+
+      await confirmation.update({ 
+        embeds: [new EmbedBuilder().setColor('#58B9FF').setDescription('Saving to database and syncing Discord roles...')], components: [] 
+      });
+      isUpdating = true;
+
+    } catch (e) {
+      if (promptMsg.editable) {
+        await promptMsg.edit({ 
+          embeds: [new EmbedBuilder().setColor('#E74C3C').setDescription('Update request timed out.')], components: [] 
+        }).catch(() => {});
+      }
+      return; 
+    }
+  }
+
+  // 6. Execution (DB FIRST)
+  const result = isUpdating 
+    ? await updateRegistrationInDB(targetId, player, executorId) 
+    : await addRegistrationToDB(targetId, player, executorId);
+
+  if (!result.success) {
     await doReact('⚠️');
-    await doReply({
-      embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Failed: ${result.error}`)],
+    return doReply({
+      embeds: [new EmbedBuilder().setColor('#E74C3C').setTitle('Register error').setDescription(`Database failure: ${result.error}`)],
       flags: 64
     });
+  }
+
+  // 7. Discord Sync (Roles & Nickname)
+  let extraInfo = '';
+  let hasMemberRoles = false;
+
+  try {
+    const guildMember = await source.guild.members.fetch(targetId);
+
+    if (isUpdating) {
+      try {
+        await guildMember.roles.set([], `Account update triggered by ${executorMember.user.tag}`);
+        await guildMember.setNickname(null, `Account update triggered by ${executorMember.user.tag}`);
+      } catch (err) {
+        console.error('Failed to purge roles on update:', err);
+        extraInfo = '\n*(Note: Missing permissions to completely purge previous Discord roles/nickname.)*';
+      }
+    }
+
+    hasMemberRoles = guildMember.roles.cache.has(MEMBER_ROLE_ID) && guildMember.roles.cache.has(EOLMEMBER_ROLE_ID);
+
+    try {
+      if (VISITOR_ROLE_ID) await guildMember.roles.add(VISITOR_ROLE_ID, `Account registered`);
+    } catch (err) {
+      console.error('Failed to assign visitor role:', err);
+    }
+
+    await guildMember.setNickname(buildNickname(player), `Account registered`).catch(err => {
+      if (err.code === RESTJSONErrorCodes.MissingPermissions) {
+        extraInfo += ` Failed to set nickname: Missing Permissions.`;
+      } else {
+        extraInfo += ` Failed to set nickname: Check logs.`;
+        console.error('Failed to set nickname:', err);
+      }
+    });
+  } catch (err) {
+    console.error('Failed to fetch guild member:', err);
+    extraInfo = `\n*(Note: Could not sync Discord member data.)*`;
+  }
+
+  const tickets_channel_url = new ButtonBuilder()
+    .setLabel('Verification Tickets')
+    .setURL('https://discord.com/channels/1247740449959968870/1383460322911715459') 
+    .setStyle(ButtonStyle.Link); 
+  const tickets_channel_url_row = new ActionRowBuilder().addComponents(tickets_channel_url);
+        
+  await doReact('✅');
+  
+  const prompt = await doReply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor('#2ECC71')
+        .setDescription(`The character name \`${player.Name}\`${player.GuildName ? ` from \`${player.GuildName}\`` : ''} has been registered and linked to ${isSelfRegister ? 'your' : 'the'} account. ${extraInfo.trim()}`)
+    ],
+    components: (isSelfRegister && !hasMemberRoles) ? [tickets_channel_url_row] : [] 
+  });
+
+  // 8. Collector Logic for Ticket
+  if (isSelfRegister && !hasMemberRoles) {
+    setTimeout(async () => {
+      if (prompt && prompt.editable) await prompt.edit({ components: [] }).catch(() => {});
+    }, 15000);
   }
 }
 // --- SHARED REGISTER LOGIC END ---
