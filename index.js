@@ -1203,10 +1203,32 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
   const duplicate_game_name = checkGameRegistration(gameName);
   if (duplicate_game_name) {
     if (duplicate_game_name.discord_id === targetId) {
+      // --- SYNC ROLES & NICKNAME ---
+      try {
+        const guildMember = await source.guild.members.fetch(targetId);
+        
+        // Ensure Visitor Role
+        if (VISITOR_ROLE_ID && !guildMember.roles.cache.has(VISITOR_ROLE_ID)) {
+          await guildMember.roles.add(VISITOR_ROLE_ID, 'Syncing missing visitor role on re-register attempt').catch(err => {
+            console.error('Failed to sync visitor role:', err);
+          });
+        }
+        
+        // Ensure Nickname (Using DB name since we haven't hit the API yet)
+        if (guildMember.nickname !== duplicate_game_name.game_name) {
+          await guildMember.setNickname(duplicate_game_name.game_name, 'Syncing nickname on re-register attempt').catch(err => {
+            console.error('Failed to sync nickname:', err);
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch guild member for sync:', err);
+      }
+
       await doReact('⚠️');
       const infoDesc = isSelfRegister 
-        ? `You are already registered as **${duplicate_game_name.game_name}**. No need to do it again.`
-        : `The user <@${targetId}> is already registered as **${duplicate_game_name.game_name}**.`;
+        ? `You are already registered as **${duplicate_game_name.game_name}**. Discord roles and nickname have been synchronized.`
+        : `The user <@${targetId}> is already registered as **${duplicate_game_name.game_name}**. Discord roles and nickname have been synchronized.`;
+        
       return doReply({
         embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(infoDesc)],
         flags: 64
