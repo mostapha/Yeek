@@ -4,7 +4,6 @@ import {
   ContainerBuilder, 
   TextDisplayBuilder, 
   MessageFlags,
-  ThumbnailBuilder,
   MediaGalleryBuilder
 } from 'discord.js';
 import { config } from 'dotenv';
@@ -16,6 +15,7 @@ import { fileURLToPath } from 'url';
 
 import Database from 'better-sqlite3';
 import fs from 'fs';
+import ms from 'ms';
 import path from 'path';
 
 config();
@@ -34,6 +34,9 @@ const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
       EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
       INTERN_ROLE_ID = process.env.INTERN_ROLE_ID,
       HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID,
+      TOP3_ROLE_ID = process.env.TOP3_ROLE_ID,
+      TOP10_ROLE_ID = process.env.TOP10_ROLE_ID,
+      TOP25_ROLE_ID = process.env.TOP25_ROLE_ID,
       ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID,
       MOD_ROLE_ID = process.env.MOD_ROLE_ID,
       TICKETS_LOG_CHANNEL = process.env.TICKETS_LOG_CHANNEL,
@@ -50,7 +53,14 @@ const ticketConfig = {
   prefix: 'ticket'
 };
 
-const YEEK_COMMANDS_CHANNEL = process.env.YEEK_COMMANDS_CHANNEL;
+// Map Role IDs to their entry weight.
+// A user with weight 2 has their name thrown in the hat 2 times.
+const GIVEAWAY_WEIGHTS = {
+  [HIERARCH_ROLE_ID]: 20,
+  [TOP25_ROLE_ID]: 23,
+  [TOP10_ROLE_ID]: 24,
+  [TOP3_ROLE_ID]: 25,
+};
 
 // Albion API base
 const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
@@ -107,6 +117,173 @@ db.prepare(`
     current_count INTEGER NOT NULL DEFAULT 0
   );
 `).run();
+
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS giveaways (
+    message_id TEXT PRIMARY KEY,
+    channel_id TEXT,
+    creator_id TEXT,
+    name TEXT,
+    winners_count INTEGER,
+    role_id TEXT,
+    end_time INTEGER,
+    image_url TEXT,
+    status TEXT DEFAULT 'active',
+    winners_json TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS giveaway_joins (
+    message_id TEXT,
+    user_id TEXT,
+    weight INTEGER DEFAULT 1,
+    PRIMARY KEY (message_id, user_id)
+  );
+`);
+
+// Add this map near the top of index.js to hold unconfirmed previews
+const giveawayDrafts = new Map();
+const pendingGiveawayUpdates = new Set();
+const scheduledGiveaways = new Map();
+
+function pickWinners(messageId, count, currentWinners = []) {
+  // Fetch users AND their weights
+  const joins = db.prepare('SELECT user_id, weight FROM giveaway_joins WHERE message_id = ?').all(messageId);
+    
+  // Filter out people who already won (crucial for rerolling)
+  let availableJoins = joins.filter(j => !currentWinners.includes(j.user_id));
+  let newWinners = [];
+    
+  // Pick winners from the available pool
+  while (newWinners.length < count && availableJoins.length > 0) {
+        
+    // Build the virtual "raffle hat"
+    let pool = [];
+    for (const join of availableJoins) {
+      // If weight is 2, push their ID into the hat 2 times
+      for (let i = 0; i < join.weight; i++) {
+        pool.push(join.user_id);
+      }
+    }
+
+    console.log('pool', pool);
+    
+    // Draw a random ticket from the hat
+    const winningId = pool[Math.floor(Math.random() * pool.length)];
+    newWinners.push(winningId);
+        
+    // REMOVE the winner from availableJoins entirely so they can't win twice in the same roll
+    availableJoins = availableJoins.filter(j => j.user_id !== winningId);
+  }
+    
+  // Fallback: If we still need winners but the pool is empty, pull from previous winners
+  // (This only triggers if you reroll but literally no one else is left)
+  let remainingOld = currentWinners.filter(id => !newWinners.includes(id));
+  while (newWinners.length < count && remainingOld.length > 0) {
+    const idx = Math.floor(Math.random() * remainingOld.length);
+    newWinners.push(remainingOld.splice(idx, 1)[0]);
+  }
+    
+  return newWinners;
+}
+
+async function endGiveaway(client, messageId) {
+  const giveaway = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(messageId);
+  if (!giveaway || giveaway.status !== 'active') return;
+
+  // Pick the winners
+  const winners = pickWinners(messageId, giveaway.winners_count, []);
+    
+  // Update the database to mark it as ended
+  db.prepare("UPDATE giveaways SET status = 'ended', winners_json = ? WHERE message_id = ?")
+    .run(JSON.stringify(winners), messageId);
+
+  try {
+    const channel = await client.channels.fetch(giveaway.channel_id);
+    const message = await channel.messages.fetch(messageId);
+        
+    // 1. Fetch the exact joinCount right here!
+    const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(messageId).total;
+        
+    // 2. Manually set the status to 'ended' on our local object so the embed builder turns it grey
+    giveaway.status = 'ended'; 
+        
+    // 3. Use our new helper function!
+    const embed = buildGiveawayEmbed(giveaway, joinCount, winners);
+
+    // --- NEW: Create the disabled button ---
+    const disabledRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`gw_ended_${messageId}`) // Safe ID
+        .setLabel(`${joinCount}`)
+        .setEmoji('🎉')
+        .setStyle(ButtonStyle.Primary) // Keeps the blue color
+        .setDisabled(true)             // Greys it out slightly and prevents clicks
+    );
+        
+    // Remove the join buttons and update the embed
+    await message.edit({ content: '🎊 **GIVEAWAY ENDED** 🎊', embeds: [embed], components: [disabledRow] });
+        
+    // Announce the winners
+    const winText = winners.length > 0 ? winners.map(w => `<@${w}>`).join(', ') : 'No one joined!';
+        
+    if (winners.length > 0) {
+      await channel.send(`🎉 Congratulations ${winText}! You won the **${giveaway.name}**! [Jump to Giveaway](https://discord.com/channels/${message.guildId}/${channel.id}/${messageId})`);
+    } else {
+      await channel.send(`The giveaway for **${giveaway.name}** ended, but no one joined. 😔`);
+    }
+  } catch (err) {
+    console.error('Failed to end giveaway:', err);
+  }
+}
+
+
+function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
+  // 1. Normalize properties (Handles both Drafts and DB rows)
+  const name = data.name;
+  const winnersCount = data.winners_count || data.winners;
+  const roleId = data.role_id || data.roleId;
+  const endTime = data.end_time || data.endTime;
+  const imageUrl = data.image_url || data.imageUrl;
+  const status = data.status || 'active'; // Drafts default to active
+
+  const isEnded = status === 'ended';
+  const embed = new EmbedBuilder();
+
+  // 2. Set Title & Color
+  if (isEnded) {
+    embed.setTitle(`${name} (ENDED)`).setColor('#da433f'); // Grey
+  } else {
+    embed.setTitle(`🎉 ${name} 🎉`).setColor('#528cc4'); // Red
+  }
+
+  // 3. Build Description
+  let desc = `**Winners:** ${winnersCount}\n**Participants:** ${participantCount}\n`;
+
+  if (isEnded) {
+    const winText = winnersArray && winnersArray.length > 0 ? winnersArray.map(w => `<@${w}>`).join(', ') : 'No one won!';
+    desc += `**Winners List:** ${winText}\n**Ended:** <t:${Math.floor(endTime / 1000)}:R>\n`;
+  } else {
+    desc += `**Ends:** <t:${Math.floor(endTime / 1000)}:R>\n`;
+  }
+
+  if (roleId) desc += `\nMust have the role: <@&${roleId}>`;
+
+  embed.setDescription(desc);
+
+  // 4. Set Image, Footer, and Timestamp
+  if (imageUrl) embed.setImage(imageUrl);
+  embed.setFooter({ text: isEnded ? 'Ended' : 'Ends' }).setTimestamp(endTime);
+
+  return embed;
+}
+
+function clearGiveawayTimer(messageId) {
+  if (scheduledGiveaways.has(messageId)) {
+    clearTimeout(scheduledGiveaways.get(messageId));
+    scheduledGiveaways.delete(messageId);
+  }
+}
 
 // After database initialization
 function cleanupOldComps() {
@@ -1076,6 +1253,78 @@ client.once(Events.ClientReady, () => {
   console.log(`Bot is ready as ${client.user.tag}`);
 
   cleanupOldComps();
+
+  // --- Inside client.once('ready', ...) ---
+  setInterval(() => {
+    const now = Date.now();
+    const expired = db.prepare("SELECT message_id FROM giveaways WHERE status = 'active' AND end_time <= ?").all(now);
+    for (const gw of expired) {
+      endGiveaway(client, gw.message_id);
+    }
+  }, 60 * 1000); // Checks every 60 seconds
+
+  // The Look-Ahead Exact Scheduler
+  setInterval(() => {
+    const now = Date.now();
+    // Look ahead 65 seconds (65000 ms) just to be safe
+    const upcoming = db.prepare("SELECT message_id, end_time FROM giveaways WHERE status = 'active' AND end_time <= ?").all(now + 65000);
+      
+    for (const gw of upcoming) {
+      // If we already have a precise timer running for this giveaway, skip it.
+      if (scheduledGiveaways.has(gw.message_id)) continue;
+
+      // Calculate exact milliseconds remaining (Math.max prevents negative numbers if it's already past)
+      const timeRemaining = Math.max(0, gw.end_time - Date.now());
+
+      // Set an exact, zero-CPU countdown in RAM
+      const timer = setTimeout(() => {
+        endGiveaway(client, gw.message_id);
+        scheduledGiveaways.delete(gw.message_id); // Clean up memory
+      }, timeRemaining);
+
+      // Save the timer so we don't duplicate it next minute
+      scheduledGiveaways.set(gw.message_id, timer);
+    }
+  }, 60 * 1000); // Still only checks the DB once a minute!
+  
+  // The 5-Second Debounce Updater for Participant Counts
+  setInterval(async () => {
+    // If no one clicked join/leave in the last 5 seconds, do nothing.
+    if (pendingGiveawayUpdates.size === 0) return;
+
+    // Copy the pending IDs and clear the queue immediately.
+    // This allows NEW clicks to start queueing up while we process these.
+    const messagesToUpdate = Array.from(pendingGiveawayUpdates);
+    pendingGiveawayUpdates.clear();
+
+    for (const messageId of messagesToUpdate) {
+      try {
+        // 1. Get current giveaway data
+        const giveaway = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(messageId);
+        if (!giveaway || giveaway.status !== 'active') continue;
+
+        // 2. Count ACTUAL unique humans (ignoring their weights)
+        const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(messageId).total;
+
+        const joinRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`gw_join_${messageId}`).setLabel(`${joinCount}`)
+          .setEmoji('🎉')
+          .setStyle(ButtonStyle.Primary));
+
+        // 3. Fetch the Discord message
+        const channel = await client.channels.fetch(giveaway.channel_id);
+        const message = await channel.messages.fetch(messageId);
+
+        // 4. Rebuild the embed with the new count
+        const embed = buildGiveawayEmbed(giveaway, joinCount);
+
+        // 5. Fire exactly ONE API request
+        await message.edit({ embeds: [embed], components: [joinRow] });
+              
+      } catch (error) {
+        console.error(`Failed to update count for giveaway ${messageId}:`, error);
+      }
+    }
+  }, 5000);
 });
 
 
@@ -2416,6 +2665,109 @@ I made this based on my own experience and what I know about the weapons. There 
         await interaction.reply({ content: 'Panel spawned.', flags: 64 });
         return;
       }
+
+      case 'giveaway': {
+        const sub = interaction.options.getSubcommand();
+
+        if (sub === 'create' || sub === 'edit') {
+          await interaction.deferReply({ ephemeral: true });
+        
+          let draft = {
+            type: sub,
+            creator_id: interaction.user.id,
+            channel_id: interaction.channelId,
+            name: interaction.options.getString('name'),
+            durationStr: interaction.options.getString('duration'),
+            winners: interaction.options.getInteger('winners') || 1,
+            roleId: interaction.options.getRole('role')?.id || null,
+            imageUrl: interaction.options.getAttachment('image')?.url || null,
+          };
+
+          if (sub === 'edit') {
+            const msgId = interaction.options.getString('message_id');
+            const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
+            
+            if (!existing) return interaction.editReply('Giveaway not found.');
+            if (existing.creator_id !== interaction.user.id) return interaction.editReply('You can only edit your own giveaways.');
+            if (existing.status !== 'active') return interaction.editReply('You cannot edit an ended/cancelled giveaway.');
+
+            draft.message_id = msgId;
+            draft.name = draft.name || existing.name;
+            draft.winners = interaction.options.getInteger('winners') || existing.winners_count;
+            draft.roleId = interaction.options.getRole('role') ? interaction.options.getRole('role').id : existing.role_id;
+            draft.imageUrl = draft.imageUrl || existing.image_url;
+            if (!draft.durationStr) draft.endTime = existing.end_time;
+          }
+
+          if (draft.durationStr) {
+            const durationInMs = ms(draft.durationStr);
+            
+            // ms() returns undefined if the format is invalid
+            if (!durationInMs) {
+              return interaction.editReply("Invalid duration format. Please use formats like '1d', '2h', '30m'.");
+            }
+            
+            draft.endTime = Date.now() + durationInMs;
+          }
+
+          const draftId = `${interaction.user.id}_${Date.now()}`;
+          giveawayDrafts.set(draftId, draft);
+
+
+          const embed = buildGiveawayEmbed(draft, 0);
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`gw_confirm_${draftId}`).setLabel('Confirm').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`gw_cancel_${draftId}`).setLabel('Cancel').setStyle(ButtonStyle.Danger)
+          );
+
+          return interaction.editReply({ content: '**PREVIEW** - Please confirm:', embeds: [embed], components: [row] });
+        }
+
+        if (sub === 'end') {
+          const msgId = interaction.options.getString('message_id');
+          const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
+          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
+        
+          await interaction.reply({ content: 'Ending...', ephemeral: true });
+          clearGiveawayTimer(msgId);
+          await endGiveaway(client, msgId);
+          return;
+        }
+
+        if (sub === 'cancel') {
+          const msgId = interaction.options.getString('message_id');
+          const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
+          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
+        
+          clearGiveawayTimer(msgId);
+          db.prepare("UPDATE giveaways SET status = 'cancelled' WHERE message_id = ?").run(msgId);
+          try {
+            const channel = await client.channels.fetch(existing.channel_id);
+            const msg = await channel.messages.fetch(msgId);
+            await msg.delete();
+          } catch (e) {}
+          return interaction.reply({ content: 'Cancelled and deleted.', ephemeral: true });
+        }
+
+        if (sub === 'reroll') {
+          const msgId = interaction.options.getString('message_id');
+          const winnerNum = interaction.options.getInteger('winner_number');
+          const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
+        
+          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
+          if (existing.status !== 'ended') return interaction.reply({ content: "Hasn't ended yet.", ephemeral: true });
+
+          const draftId = `${interaction.user.id}_${Date.now()}`;
+          giveawayDrafts.set(draftId, { type: 'reroll', message_id: msgId, winnerNum });
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`gw_confirm_${draftId}`).setLabel('Confirm Reroll').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`gw_cancel_${draftId}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary)
+          );
+          return interaction.reply({ content: `Reroll ${winnerNum ? `winner #${winnerNum}` : 'ALL winners'}?`, components: [row], ephemeral: true });
+        }
+      }
     }
 
 
@@ -2978,6 +3330,135 @@ Please follow the "How to apply" instructions below by sending your screenshots 
       });
 
       return;
+    } else {
+      // --- Inside your interaction.isButton() block ---
+      if (interaction.customId.startsWith('gw_join_')) {
+        const messageId = interaction.customId.split('_')[2];
+        const giveaway = db.prepare("SELECT * FROM giveaways WHERE message_id = ? AND status = 'active'").get(messageId);
+        if (!giveaway) return interaction.reply({ content: 'This giveaway is over.', ephemeral: true });
+
+        if (giveaway.role_id && !interaction.member.roles.cache.has(giveaway.role_id)) {
+          return interaction.reply({ content: `You are missing the <@&${giveaway.role_id}> role.`, ephemeral: true });
+        }
+
+        const existing = db.prepare('SELECT 1 FROM giveaway_joins WHERE message_id = ? AND user_id = ?').get(messageId, interaction.user.id);
+        if (existing) {
+          const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`gw_leave_${messageId}`).setLabel('Leave Giveaway').setStyle(ButtonStyle.Danger));
+          return interaction.reply({ content: 'You already joined!', components: [row], ephemeral: true });
+        }
+
+        // Calculate weight (Assuming you are using the weights we set up earlier)
+        let userWeight = 10; 
+        for (const [roleId, weightMultiplier] of Object.entries(GIVEAWAY_WEIGHTS)) {
+          if (interaction.member.roles.cache.has(roleId)) {
+            if (weightMultiplier > userWeight) userWeight = weightMultiplier;
+          }
+        }
+
+        // 1. Insert into DB instantly
+        db.prepare('INSERT INTO giveaway_joins (message_id, user_id, weight) VALUES (?, ?, ?)').run(messageId, interaction.user.id, userWeight);
+    
+        // 2. Queue the visual update!
+        pendingGiveawayUpdates.add(messageId);
+
+        // 3. Reply instantly to the user
+        return interaction.reply({ content: '🎉 Nice, you joined the giveaway, good luck!', ephemeral: true });
+      }
+
+      if (interaction.customId.startsWith('gw_leave_')) {
+        const messageId = interaction.customId.split('_')[2];
+    
+        // 1. Delete from DB instantly
+        db.prepare('DELETE FROM giveaway_joins WHERE message_id = ? AND user_id = ?').run(messageId, interaction.user.id);
+    
+        // 2. Queue the visual update! (The background loop will handle the rest)
+        pendingGiveawayUpdates.add(messageId);
+
+        // 3. Reply instantly to the user
+        return interaction.update({ content: 'You left the giveaway.', components: [] });
+      }
+
+      if (interaction.customId.startsWith('gw_cancel_')) {
+        giveawayDrafts.delete(interaction.customId.replace('gw_cancel_', ''));
+        return interaction.update({ content: 'Cancelled.', embeds: [], components: [] });
+      }
+
+      if (interaction.customId.startsWith('gw_confirm_')) {
+        const draftId = interaction.customId.replace('gw_confirm_', '');
+        const draft = giveawayDrafts.get(draftId);
+        if (!draft) return interaction.update({ content: 'Session expired.', embeds: [], components: [] });
+
+        if (draft.type === 'create' || draft.type === 'edit') {
+
+          // Recalculate the end time from the exact moment they click Confirm
+          if (draft.durationStr) {
+            draft.endTime = Date.now() + ms(draft.durationStr);
+          }
+          // ------------------------------------
+          const embed = buildGiveawayEmbed(draft, 0);
+
+          if (draft.type === 'create') {
+            const joinRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('gw_join_TMP').setLabel('0')
+              .setEmoji('🎉')
+              .setStyle(ButtonStyle.Primary));
+            const channel = await client.channels.fetch(draft.channel_id);
+            const msg = await channel.send({ embeds: [embed], components: [joinRow] });
+            
+            joinRow.components[0].setCustomId(`gw_join_${msg.id}`);
+            await msg.edit({ components: [joinRow] });
+
+            db.prepare(`INSERT INTO giveaways (message_id, channel_id, creator_id, name, winners_count, role_id, end_time, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(msg.id, draft.channel_id, draft.creator_id, draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl);
+            await interaction.update({ content: `Giveaway started!`, embeds: [], components: [] });
+          } else {
+            clearGiveawayTimer(draft.message_id);
+            db.prepare(`UPDATE giveaways SET name=?, winners_count=?, role_id=?, end_time=?, image_url=? WHERE message_id=?`).run(draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl, draft.message_id);
+            const channel = await client.channels.fetch(draft.channel_id);
+            const msg = await channel.messages.fetch(draft.message_id);
+            await msg.edit({ embeds: [embed] });
+            await interaction.update({ content: 'Edited successfully!', embeds: [], components: [] });
+          }
+        } else if (draft.type === 'reroll') {
+          const gw = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(draft.message_id);
+          let currentWinners = JSON.parse(gw.winners_json || '[]');
+
+          if (draft.winnerNum) {
+            const index = draft.winnerNum - 1;
+            if (!currentWinners[index]) return interaction.update({ content: "Winner number doesn't exist.", components: [] });
+            const newPicks = pickWinners(draft.message_id, 1, currentWinners);
+            if (newPicks.length > 0) currentWinners[index] = newPicks[0];
+          } else {
+            currentWinners = pickWinners(draft.message_id, gw.winners_count, currentWinners);
+          }
+
+          db.prepare('UPDATE giveaways SET winners_json = ? WHERE message_id = ?').run(JSON.stringify(currentWinners), draft.message_id);
+          const channel = await client.channels.fetch(gw.channel_id);
+          const msg = await channel.messages.fetch(draft.message_id);
+        
+          // --- UPDATED BLOCK START ---
+          const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(draft.message_id).total;
+        
+          gw.status = 'ended'; // Ensure it triggers the grey 'ended' styling
+          const embed = buildGiveawayEmbed(gw, joinCount, currentWinners);
+          // --- UPDATED BLOCK END ---
+
+          // --- NEW: Rebuild the disabled button for the reroll ---
+          const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`gw_ended_${draft.message_id}`)
+              .setLabel(`${joinCount}`)
+              .setEmoji('🎉')
+              .setStyle(ButtonStyle.Primary)
+              .setDisabled(true)
+          );
+        
+          await msg.edit({ embeds: [embed], components: [disabledRow] });
+        
+          const winText = currentWinners.length > 0 ? currentWinners.map(w => `<@${w}>`).join(', ') : 'No one left in pool!';
+          await channel.send(`🔄 **Reroll!** New winner(s) of **${gw.name}**: ${winText}`);
+          await interaction.update({ content: 'Reroll complete!', components: [] });
+        }
+        giveawayDrafts.delete(draftId);
+      }
     }
     
 

@@ -164,6 +164,53 @@ const commands = [
     .setDescription('Spawns the ticket panel for users')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // Lock to admins
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName('giveaway')
+    .setDescription('Manage Yeek giveaways')
+    .addSubcommand(sub => sub
+      .setName('create')
+      .setDescription('Create a new giveaway')
+      .addStringOption(o => o.setName('name').setDescription('What users will win').setRequired(true))
+      .addStringOption(o => o.setName('duration').setDescription('E.g., 1 day, 2h, 30mins').setRequired(true))
+      .addIntegerOption(o => o.setName('winners').setDescription('Number of winners').setMinValue(1))
+      .addRoleOption(o => o.setName('role').setDescription('Role required to join'))
+      .addAttachmentOption(o => o.setName('image').setDescription('Image for the giveaway embed'))
+    )
+    .addSubcommand(sub => sub
+      .setName('edit')
+      .setDescription('Edit an active giveaway')
+      .addStringOption(o => o.setName('message_id').setDescription('ID of the giveaway message').setRequired(true))
+      .addStringOption(o => o.setName('name').setDescription('New name'))
+      .addStringOption(o => o.setName('duration').setDescription('New duration (restarts from now)'))
+      .addIntegerOption(o => o.setName('winners').setDescription('New number of winners').setMinValue(1))
+      .addRoleOption(o => o.setName('role').setDescription('New required role'))
+      .addAttachmentOption(o => o.setName('image').setDescription('New image'))
+    )
+    .addSubcommand(sub => sub
+      .setName('reroll')
+      .setDescription('Reroll winner(s)')
+      .addStringOption(o => o.setName('message_id').setDescription('ID of the giveaway message').setRequired(true))
+      .addIntegerOption(o => o.setName('winner_number').setDescription('Specific winner to reroll').setMinValue(1))
+    )
+    .addSubcommand(sub => sub
+      .setName('end')
+      .setDescription('End a giveaway immediately')
+      .addStringOption(o => o
+        .setName('message_id')
+        .setDescription('ID of the giveaway message') // <-- This was missing!
+        .setRequired(true)
+      )
+    )
+    .addSubcommand(sub => sub
+      .setName('cancel')
+      .setDescription('Delete a giveaway entirely')
+      .addStringOption(o => o
+        .setName('message_id')
+        .setDescription('ID of the giveaway message') // <-- This was missing too!
+        .setRequired(true)
+      )
+    ).toJSON()
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
