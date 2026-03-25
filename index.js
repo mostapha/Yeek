@@ -142,6 +142,13 @@ db.exec(`
   );
 `);
 
+try {
+  // This will safely add the column if it doesn't exist yet
+  db.exec('ALTER TABLE giveaways ADD COLUMN winner_message_id TEXT;');
+} catch (e) {
+  // Ignore error: column already exists
+}
+
 // Add this map near the top of index.js to hold unconfirmed previews
 const giveawayDrafts = new Map();
 const pendingGiveawayUpdates = new Set();
@@ -227,7 +234,6 @@ async function endGiveaway(client, messageId) {
     // Remove the join buttons and update the embed
     await message.edit({ content: '🎊 **GIVEAWAY ENDED** 🎊', embeds: [embed], components: [disabledRow] });
         
-    // Announce the winners 
     // 1. Create a clickable link button to jump back to the original giveaway
     const giveawayLink = `https://discord.com/channels/${message.guildId}/${channel.id}/${messageId}`;
     const linkRow = new ActionRowBuilder().addComponents(
@@ -245,6 +251,7 @@ async function endGiveaway(client, messageId) {
       announceEmbed.setThumbnail(giveaway.image_url);
     }
 
+    let announceMsg; //
     if (winners.length > 0) {
       const winText = winners.map(w => `<@${w}>`).join(', ');
 
@@ -259,13 +266,12 @@ async function endGiveaway(client, messageId) {
       }
 
       announceEmbed.addFields(
-        { name: '🏆 Winner(s)', value: winText, inline: false },
-        { name: '🎁 Prize', value: `**${giveaway.name}**`, inline: false }
+        { name: 'Winner(s)', value: winText, inline: false },
+        { name: 'Prize', value: `**${giveaway.name}**`, inline: false }
       );
 
-      // IMPORTANT: We put the `winText` in the 'content' outside the embed!
-      // If you only mention users inside an embed, Discord DOES NOT send them a push notification/ping.
-      await channel.send({ 
+      // Ping the winners outside the embed
+      announceMsg = await channel.send({ 
         content: `Congratulations ${winText}!`, 
         embeds: [announceEmbed], 
         components: [linkRow] 
@@ -273,15 +279,20 @@ async function endGiveaway(client, messageId) {
 
     } else {
       // Situation: No one joined
-      announceEmbed.setTitle('Giveaway Ended')
+      announceEmbed.setTitle('🎊 Giveaway Ended! 🎊')
         .setColor('#E74C3C') // Failure Red
-        .setDescription(`The giveaway for **${giveaway.name}** has ended, but unfortunately no one participated! 😔`);
+        .setDescription(`The giveaway for **${giveaway.name}** has ended, but unfortunately no one participated.`);
 
-      await channel.send({ 
+      announceMsg = await channel.send({ 
         embeds: [announceEmbed], 
         components: [linkRow] 
       });
     }
+
+    // NEW: Save the announcement message ID to the database!
+    db.prepare('UPDATE giveaways SET winner_message_id = ? WHERE message_id = ?')
+      .run(announceMsg.id, messageId);
+          
   } catch (err) {
     console.error('Failed to end giveaway:', err);
   }
@@ -3536,6 +3547,52 @@ Please follow the "How to apply" instructions below by sending your screenshots 
         
           const winText = currentWinners.length > 0 ? currentWinners.map(w => `<@${w}>`).join(', ') : 'No one left in pool!';
           await channel.send(`🔄 **Reroll!** New winner(s) of **${gw.name}**: ${winText}`);
+
+          // 2. Edit the ORIGINAL announcement message if we saved its ID
+          if (gw.winner_message_id) {
+            try {
+              const oldAnnounceMsg = await channel.messages.fetch(gw.winner_message_id);
+                
+              // Rebuild the beautiful announcement embed
+              const giveawayLink = `https://discord.com/channels/${msg.guildId}/${gw.channel_id}/${draft.message_id}`;
+              const linkRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel('View Giveaway').setStyle(ButtonStyle.Link).setURL(giveawayLink));
+                
+              const announceEmbed = new EmbedBuilder().setTimestamp();
+              if (gw.image_url) announceEmbed.setThumbnail(gw.image_url);
+
+              let newContent = '';
+
+              if (currentWinners.length > 0) {
+                announceEmbed.setTitle('🎊 Giveaway Ended! 🎊').setColor('#2ECC71');
+                    
+                if (currentWinners.length < gw.winners_count) {
+                  announceEmbed.setDescription(`The giveaway for **${gw.name}** has ended!\n\n*Note: We wanted **${gw.winners_count}** winners, but only **${currentWinners.length}** people entered. They win by default!*`);
+                } else {
+                  announceEmbed.setDescription(`The giveaway for **${gw.name}** has ended!`);
+                }
+
+                announceEmbed.addFields(
+                  { name: 'Winner(s)', value: winText, inline: false },
+                  { name: 'Prize', value: `**${gw.name}**`, inline: false }
+                );
+                newContent = `Congratulations ${winText}!`;
+              } else {
+                announceEmbed.setTitle('🎊 Giveaway Ended! 🎊').setColor('#E74C3C')
+                  .setDescription(`The giveaway for **${gw.name}** has ended, but unfortunately no one participated.`);
+              }
+
+              // Push the edit to the old message!
+              await oldAnnounceMsg.edit({ 
+                content: newContent || null, 
+                embeds: [announceEmbed], 
+                components: [linkRow] 
+              });
+
+            } catch (err) {
+              console.error('Could not find or edit the original announcement message:', err);
+            }
+          }
+        
           await interaction.editReply({ content: 'Reroll complete!', components: [] });
         }
         giveawayDrafts.delete(draftId);
