@@ -191,7 +191,8 @@ const commands = [
       .setName('reroll')
       .setDescription('Reroll winner(s)')
       .addStringOption(o => o.setName('message_id').setDescription('ID of the giveaway message').setRequired(true))
-      .addIntegerOption(o => o.setName('winner_number').setDescription('Specific winner to reroll').setMinValue(1))
+    // Changed to StringOption to support commas
+      .addStringOption(o => o.setName('winner_numbers').setDescription('Specific winner(s) to reroll (e.g., 1,3,5). Leave empty for all.'))
     )
     .addSubcommand(sub => sub
       .setName('end')

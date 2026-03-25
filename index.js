@@ -2752,20 +2752,36 @@ I made this based on my own experience and what I know about the weapons. There 
 
         if (sub === 'reroll') {
           const msgId = interaction.options.getString('message_id');
-          const winnerNum = interaction.options.getInteger('winner_number');
+          const winnerNumbersStr = interaction.options.getString('winner_numbers');
+        
           const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
         
           if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
-          if (existing.status !== 'ended') return interaction.reply({ content: "Hasn't ended yet.", ephemeral: true });
+          if (existing.status !== 'ended') return interaction.reply({ content: "Giveaway hasn't ended yet.", ephemeral: true });
+
+          // --- NEW STRING PARSER ---
+          let winnerNums = null;
+          if (winnerNumbersStr) {
+            // Converts "1, 3, 5" into [1, 3, 5]
+            winnerNums = winnerNumbersStr.split(',')
+              .map(n => parseInt(n.trim()))
+              .filter(n => !isNaN(n) && n > 0);
+                
+            if (winnerNums.length === 0) {
+              return interaction.reply({ content: 'Invalid format. Use numbers separated by commas (e.g., 1,3,5).', ephemeral: true });
+            }
+          }
 
           const draftId = `${interaction.user.id}_${Date.now()}`;
-          giveawayDrafts.set(draftId, { type: 'reroll', message_id: msgId, winnerNum });
+          giveawayDrafts.set(draftId, { type: 'reroll', message_id: msgId, winnerNums });
 
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`gw_confirm_${draftId}`).setLabel('Confirm Reroll').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`gw_cancel_${draftId}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary)
           );
-          return interaction.reply({ content: `Reroll ${winnerNum ? `winner #${winnerNum}` : 'ALL winners'}?`, components: [row], ephemeral: true });
+        
+          const targetText = winnerNums ? `winners: #${winnerNums.join(', #')}` : 'ALL winners';
+          return interaction.reply({ content: `Are you sure you want to reroll ${targetText}?`, components: [row], ephemeral: true });
         }
       }
     }
@@ -3388,6 +3404,11 @@ Please follow the "How to apply" instructions below by sending your screenshots 
         const draft = giveawayDrafts.get(draftId);
         if (!draft) return interaction.update({ content: 'Session expired.', embeds: [], components: [] });
 
+        // --- ADD THIS LINE HERE ---
+        // Instantly acknowledge the button to prevent the 3-second timeout!
+        await interaction.update({ content: '⏳ Processing your request...', embeds: [], components: [] });
+        // --------------------------
+
         if (draft.type === 'create' || draft.type === 'edit') {
 
           // Recalculate the end time from the exact moment they click Confirm
@@ -3408,54 +3429,64 @@ Please follow the "How to apply" instructions below by sending your screenshots 
             await msg.edit({ components: [joinRow] });
 
             db.prepare(`INSERT INTO giveaways (message_id, channel_id, creator_id, name, winners_count, role_id, end_time, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(msg.id, draft.channel_id, draft.creator_id, draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl);
-            await interaction.update({ content: `Giveaway started!`, embeds: [], components: [] });
+            await interaction.editReply({ content: `Giveaway started!`, embeds: [], components: [] });
           } else {
             clearGiveawayTimer(draft.message_id);
             db.prepare(`UPDATE giveaways SET name=?, winners_count=?, role_id=?, end_time=?, image_url=? WHERE message_id=?`).run(draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl, draft.message_id);
             const channel = await client.channels.fetch(draft.channel_id);
             const msg = await channel.messages.fetch(draft.message_id);
             await msg.edit({ embeds: [embed] });
-            await interaction.update({ content: 'Edited successfully!', embeds: [], components: [] });
+            await interaction.editReply({ content: 'Edited successfully!', embeds: [], components: [] });
           }
         } else if (draft.type === 'reroll') {
           const gw = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(draft.message_id);
           let currentWinners = JSON.parse(gw.winners_json || '[]');
 
-          if (draft.winnerNum) {
-            const index = draft.winnerNum - 1;
-            if (!currentWinners[index]) return interaction.update({ content: "Winner number doesn't exist.", components: [] });
-            const newPicks = pickWinners(draft.message_id, 1, currentWinners);
-            if (newPicks.length > 0) currentWinners[index] = newPicks[0];
+          if (draft.winnerNums && draft.winnerNums.length > 0) {
+            // --- NEW MULTIPLE REROLL LOGIC ---
+            // 1. Convert display numbers (1,3) to array indexes (0,2) and ensure they exist
+            const validIndexes = draft.winnerNums
+              .map(n => n - 1)
+              .filter(idx => currentWinners[idx] !== undefined);
+
+            if (validIndexes.length === 0) {
+              return interaction.editReply({ content: 'None of the specified winner numbers exist.', components: [] });
+            }
+
+            // 2. Pick X new winners from the pool
+            const newPicks = pickWinners(draft.message_id, validIndexes.length, currentWinners);
+            
+            // 3. Swap the old winners with the new picks at those exact indexes
+            for (let i = 0; i < validIndexes.length; i++) {
+              if (newPicks[i]) {
+                currentWinners[validIndexes[i]] = newPicks[i];
+              }
+            }
           } else {
+            // Reroll all
             currentWinners = pickWinners(draft.message_id, gw.winners_count, currentWinners);
           }
 
           db.prepare('UPDATE giveaways SET winners_json = ? WHERE message_id = ?').run(JSON.stringify(currentWinners), draft.message_id);
+        
+          // ... (Keep the rest of your embed editing, joinCount fetching, and channel.send code here) ...
           const channel = await client.channels.fetch(gw.channel_id);
           const msg = await channel.messages.fetch(draft.message_id);
         
-          // --- UPDATED BLOCK START ---
           const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(draft.message_id).total;
         
-          gw.status = 'ended'; // Ensure it triggers the grey 'ended' styling
+          gw.status = 'ended'; 
           const embed = buildGiveawayEmbed(gw, joinCount, currentWinners);
-          // --- UPDATED BLOCK END ---
 
-          // --- NEW: Rebuild the disabled button for the reroll ---
           const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`gw_ended_${draft.message_id}`)
-              .setLabel(`${joinCount}`)
-              .setEmoji('🎉')
-              .setStyle(ButtonStyle.Primary)
-              .setDisabled(true)
+            new ButtonBuilder().setCustomId(`gw_ended_${draft.message_id}`).setLabel(`${joinCount}`).setEmoji('🎉').setStyle(ButtonStyle.Primary).setDisabled(true)
           );
-        
+
           await msg.edit({ embeds: [embed], components: [disabledRow] });
         
           const winText = currentWinners.length > 0 ? currentWinners.map(w => `<@${w}>`).join(', ') : 'No one left in pool!';
           await channel.send(`🔄 **Reroll!** New winner(s) of **${gw.name}**: ${winText}`);
-          await interaction.update({ content: 'Reroll complete!', components: [] });
+          await interaction.editReply({ content: 'Reroll complete!', components: [] });
         }
         giveawayDrafts.delete(draftId);
       }
