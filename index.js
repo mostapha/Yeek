@@ -307,6 +307,7 @@ function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
   const endTime = data.end_time || data.endTime;
   const imageUrl = data.image_url || data.imageUrl;
   const status = data.status || 'active'; // Drafts default to active
+  const creatorId = data.creator_id; // <-- Grab the creator ID!
 
   const isEnded = status === 'ended';
   const embed = new EmbedBuilder();
@@ -319,7 +320,7 @@ function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
   }
 
   // 3. Build Description
-  let desc = `**Winners:** ${winnersCount}\n`;
+  let desc = `**Hosted By:** <@${creatorId}>\n\n**Winners:** ${winnersCount}\n`;
 
   if (isEnded) {
     const winText = winnersArray && winnersArray.length > 0 ? winnersArray.map(w => `<@${w}>`).join(', ') : 'No one won!';
