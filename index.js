@@ -34,9 +34,10 @@ const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
       EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
       INTERN_ROLE_ID = process.env.INTERN_ROLE_ID,
       HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID,
-      TOP3_ROLE_ID = process.env.TOP3_ROLE_ID,
+      TOP3_ROLE_ID = process.env.TOP3_ROLE_ID, // keep weigt like top 10
       TOP10_ROLE_ID = process.env.TOP10_ROLE_ID,
       TOP25_ROLE_ID = process.env.TOP25_ROLE_ID,
+      TOP50_ROLE_ID = process.env.TOP50_ROLE_ID,
       ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID,
       MOD_ROLE_ID = process.env.MOD_ROLE_ID,
       TICKETS_LOG_CHANNEL = process.env.TICKETS_LOG_CHANNEL,
@@ -57,9 +58,9 @@ const ticketConfig = {
 // A user with weight 2 has their name thrown in the hat 2 times.
 const GIVEAWAY_WEIGHTS = {
   [HIERARCH_ROLE_ID]: 20,
-  [TOP25_ROLE_ID]: 23,
-  [TOP10_ROLE_ID]: 24,
-  [TOP3_ROLE_ID]: 25,
+  [TOP50_ROLE_ID]: 20,
+  [TOP25_ROLE_ID]: 21,
+  [TOP10_ROLE_ID]: 22
 };
 
 // Albion API base
@@ -166,7 +167,7 @@ function pickWinners(messageId, count, currentWinners = []) {
       }
     }
 
-    console.log('pool', pool);
+    // console.log('pool', pool);
     
     // Draw a random ticket from the hat
     const winningId = pool[Math.floor(Math.random() * pool.length)];
@@ -224,13 +225,60 @@ async function endGiveaway(client, messageId) {
     // Remove the join buttons and update the embed
     await message.edit({ content: '🎊 **GIVEAWAY ENDED** 🎊', embeds: [embed], components: [disabledRow] });
         
-    // Announce the winners
-    const winText = winners.length > 0 ? winners.map(w => `<@${w}>`).join(', ') : 'No one joined!';
-        
+    // Announce the winners 
+    // 1. Create a clickable link button to jump back to the original giveaway
+    const giveawayLink = `https://discord.com/channels/${message.guildId}/${channel.id}/${messageId}`;
+    const linkRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('View Giveaway')
+        .setStyle(ButtonStyle.Link)
+        .setURL(giveawayLink)
+    );
+
+    const announceEmbed = new EmbedBuilder()
+      .setTimestamp();
+            
+    // Keep the thumbnail consistent if they had an image
+    if (giveaway.image_url) {
+      announceEmbed.setThumbnail(giveaway.image_url);
+    }
+
     if (winners.length > 0) {
-      await channel.send(`🎉 Congratulations ${winText}! You won the **${giveaway.name}**! [Jump to Giveaway](https://discord.com/channels/${message.guildId}/${channel.id}/${messageId})`);
+      const winText = winners.map(w => `<@${w}>`).join(', ');
+
+      announceEmbed.setTitle('🎊 Giveaway Ended! 🎊')
+        .setColor('#2ECC71'); // Success Green
+
+      // Handle the situation where fewer people joined than the number of prizes
+      if (winners.length < giveaway.winners_count) {
+        announceEmbed.setDescription(`The giveaway for **${giveaway.name}** has ended!\n\n*Note: We wanted **${giveaway.winners_count}** winners, but only **${winners.length}** people entered. They win by default!*`);
+      } else {
+        announceEmbed.setDescription(`The giveaway for **${giveaway.name}** has ended!`);
+      }
+
+      announceEmbed.addFields(
+        { name: '🏆 Winner(s)', value: winText, inline: false },
+        { name: '🎁 Prize', value: `**${giveaway.name}**`, inline: false }
+      );
+
+      // IMPORTANT: We put the `winText` in the 'content' outside the embed!
+      // If you only mention users inside an embed, Discord DOES NOT send them a push notification/ping.
+      await channel.send({ 
+        content: `Congratulations ${winText}!`, 
+        embeds: [announceEmbed], 
+        components: [linkRow] 
+      });
+
     } else {
-      await channel.send(`The giveaway for **${giveaway.name}** ended, but no one joined. 😔`);
+      // Situation: No one joined
+      announceEmbed.setTitle('Giveaway Ended')
+        .setColor('#E74C3C') // Failure Red
+        .setDescription(`The giveaway for **${giveaway.name}** has ended, but unfortunately no one participated! 😔`);
+
+      await channel.send({ 
+        embeds: [announceEmbed], 
+        components: [linkRow] 
+      });
     }
   } catch (err) {
     console.error('Failed to end giveaway:', err);
