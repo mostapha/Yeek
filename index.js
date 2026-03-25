@@ -196,9 +196,10 @@ async function endGiveaway(client, messageId) {
   const winners = pickWinners(messageId, giveaway.winners_count, []);
     
   // Update the database to mark it as ended
-  db.prepare("UPDATE giveaways SET status = 'ended', winners_json = ? WHERE message_id = ?")
-    .run(JSON.stringify(winners), messageId);
-
+  const rightNow = Date.now();
+  db.prepare("UPDATE giveaways SET status = 'ended', winners_json = ?, end_time = ? WHERE message_id = ?")
+    .run(JSON.stringify(winners), rightNow, messageId);
+      
   try {
     const channel = await client.channels.fetch(giveaway.channel_id);
     const message = await channel.messages.fetch(messageId);
@@ -208,6 +209,7 @@ async function endGiveaway(client, messageId) {
         
     // 2. Manually set the status to 'ended' on our local object so the embed builder turns it grey
     giveaway.status = 'ended'; 
+    giveaway.end_time = rightNow; // Override the local time so the embed uses "right now"
         
     // 3. Use our new helper function!
     const embed = buildGiveawayEmbed(giveaway, joinCount, winners);
@@ -306,7 +308,7 @@ function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
   }
 
   // 3. Build Description
-  let desc = `**Winners:** ${winnersCount}\n**Participants:** ${participantCount}\n`;
+  let desc = `**Winners:** ${winnersCount}\n`;
 
   if (isEnded) {
     const winText = winnersArray && winnersArray.length > 0 ? winnersArray.map(w => `<@${w}>`).join(', ') : 'No one won!';
