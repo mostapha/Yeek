@@ -3231,7 +3231,7 @@ I made this based on my own experience and what I know about the weapons. There 
       const nextNumber = getCount ? getCount.current_count + 1 : 1;
       db.prepare('UPDATE ticket_counter SET current_count = ? WHERE id = 1').run(nextNumber);
 
-      const ticketName = `${ticketConfig.prefix}-${String(nextNumber).padStart(4, '0')}`;
+      const ticketName = `${ticketConfig.prefix}-${String(nextNumber).padStart(4, '0')} (${userRecord.game_name})`;
       const targetChannel = interaction.client.channels.cache.get(ticketConfig.targetChannelId);
 
       if (!targetChannel) {
@@ -3240,7 +3240,7 @@ I made this based on my own experience and what I know about the weapons. There 
 
       // Create private thread
       const thread = await targetChannel.threads.create({
-        name: ticketName,
+        name: ticketName.slice(0, 100),
         type: ChannelType.PrivateThread,
         reason: 'User opened a ticket',
         invitable: false
