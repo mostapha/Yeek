@@ -611,7 +611,7 @@ async function runSignupLogic(item, message, compId, parsed_data) {
     const alreadyAssigned = slots.find(s => s.playerId === String(item.authorId));
     if (alreadyAssigned) {
       await message.react('❌').catch(() => {});
-      await message.reply(`You are already signed as \`${alreadyAssigned.roleName}\``).catch(() => {});
+      await message.reply(`You are already signed as \`${alreadyAssigned.roleName}\`.. type - to remove your sign up`).catch(() => {});
       return { ok: false, reason: 'already_signed' };
     }
     if (target.playerId) {
@@ -1526,7 +1526,7 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
         }
         
         // Ensure Nickname (Using DB name since we haven't hit the API yet)
-        if (guildMember.nickname !== duplicate_game_name.game_name) {
+        if (!guildMember.nickname.includes(duplicate_game_name.game_name)) {
           await guildMember.setNickname(duplicate_game_name.game_name, 'Syncing nickname on re-register attempt').catch(err => {
             console.error('Failed to sync nickname:', err);
           });
@@ -1537,8 +1537,8 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
 
       await doReact('⚠️');
       const infoDesc = isSelfRegister 
-        ? `You are already registered as **${duplicate_game_name.game_name}**. Discord roles and nickname have been synchronized.`
-        : `The user <@${targetId}> is already registered as **${duplicate_game_name.game_name}**. Discord roles and nickname have been synchronized.`;
+        ? `You are already registered as **${duplicate_game_name.game_name}**.`
+        : `The user <@${targetId}> is already registered as **${duplicate_game_name.game_name}**.`;
         
       return doReply({
         embeds: [new EmbedBuilder().setColor('#58B9FF').setTitle('Register info').setDescription(infoDesc)],
@@ -4627,19 +4627,16 @@ client.on('messageCreate', async (message) => {
       .setAccentColor(0x57F287) 
       .addTextDisplayComponents(
         new TextDisplayBuilder()
-          .setContent('## Verification tickets\nThe battlefield is calling, and Martlock is bringing the chaos. We hold the line, we take the lands, and we leave the enemy in the dirt. Ready to drop bodies and be part of an unstoppable force?')
+          .setContent(`## Verification tickets\nThe battlefield is calling, and Martlock is bringing the chaos. We hold the line, we take the lands, and we leave our enemies in the dirt. Ready to fight, dominate, and be part of an unstoppable force?`)
       )
-      .addMediaGalleryComponents(
-        new MediaGalleryBuilder()
-          .addItems({ media: { url: 'https://i.imgur.com/AD03D9P.png' } })
-      );
 
     // 2. Build your Action Row separately
     const buttonRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('ticket_open')
-        .setLabel('Open Verification Ticket')
-        .setStyle(ButtonStyle.Success)
+        .setEmoji('🎫')
+        .setLabel('Open a Ticket')
+        .setStyle(ButtonStyle.Secondary)
     );
 
     // 3. Send to the channel normally instead of replying
