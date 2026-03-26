@@ -176,6 +176,7 @@ const commands = [
       .addIntegerOption(o => o.setName('winners').setDescription('Number of winners').setMinValue(1))
       .addRoleOption(o => o.setName('role').setDescription('Role required to join'))
       .addAttachmentOption(o => o.setName('image').setDescription('Image for the giveaway embed'))
+      .addBooleanOption(o => o.setName('weighted').setDescription('Active people have more chance of winning?'))
     )
     .addSubcommand(sub => sub
       .setName('edit')

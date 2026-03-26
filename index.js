@@ -143,8 +143,8 @@ db.exec(`
 `);
 
 try {
-  // This will safely add the column if it doesn't exist yet
-  db.exec('ALTER TABLE giveaways ADD COLUMN winner_message_id TEXT;');
+  // 1 = True (Weighted), 0 = False (Equal Chance)
+  db.exec('ALTER TABLE giveaways ADD COLUMN weighted INTEGER DEFAULT 1;');
 } catch (e) {
   // Ignore error: column already exists
 }
@@ -2734,6 +2734,7 @@ I made this based on my own experience and what I know about the weapons. There 
         if (sub === 'create' || sub === 'edit') {
           await interaction.deferReply({ ephemeral: true });
         
+          const isWeighted = interaction.options.getBoolean('weighted');
           let draft = {
             type: sub,
             creator_id: interaction.user.id,
@@ -2743,6 +2744,8 @@ I made this based on my own experience and what I know about the weapons. There 
             winners: interaction.options.getInteger('winners') || 1,
             roleId: interaction.options.getRole('role')?.id || null,
             imageUrl: interaction.options.getAttachment('image')?.url || null,
+            // NEW: Set weighted. If null (not provided), default to true.
+            weighted: isWeighted !== null ? isWeighted : true
           };
 
           if (sub === 'edit') {
@@ -2758,6 +2761,8 @@ I made this based on my own experience and what I know about the weapons. There 
             draft.winners = interaction.options.getInteger('winners') || existing.winners_count;
             draft.roleId = interaction.options.getRole('role') ? interaction.options.getRole('role').id : existing.role_id;
             draft.imageUrl = draft.imageUrl || existing.image_url;
+            // NEW: Inherit the existing weighted setting so the embed builder knows what to display
+            draft.weighted = existing.weighted === 1;
             if (!draft.durationStr) draft.endTime = existing.end_time;
           }
 
@@ -3425,11 +3430,14 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           return interaction.reply({ content: 'You already joined!', components: [row], ephemeral: true });
         }
 
-        // Calculate weight (Assuming you are using the weights we set up earlier)
-        let userWeight = 10; 
-        for (const [roleId, weightMultiplier] of Object.entries(GIVEAWAY_WEIGHTS)) {
-          if (interaction.member.roles.cache.has(roleId)) {
-            if (weightMultiplier > userWeight) userWeight = weightMultiplier;
+        let userWeight = 1; // Default to 1 (Equal Chance)
+
+        if (giveaway.weighted === 1) {
+          userWeight = 10; 
+          for (const [roleId, weightMultiplier] of Object.entries(GIVEAWAY_WEIGHTS)) {
+            if (interaction.member.roles.cache.has(roleId)) {
+              if (weightMultiplier > userWeight) userWeight = weightMultiplier;
+            }
           }
         }
 
@@ -3490,7 +3498,18 @@ Please follow the "How to apply" instructions below by sending your screenshots 
             joinRow.components[0].setCustomId(`gw_join_${msg.id}`);
             await msg.edit({ components: [joinRow] });
 
-            db.prepare(`INSERT INTO giveaways (message_id, channel_id, creator_id, name, winners_count, role_id, end_time, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(msg.id, draft.channel_id, draft.creator_id, draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl);
+            db.prepare(`INSERT INTO giveaways (message_id, channel_id, creator_id, name, winners_count, role_id, end_time, image_url, weighted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+              msg.id, 
+              draft.channel_id, 
+              draft.creator_id, 
+              draft.name, 
+              draft.winners, 
+              draft.roleId, 
+              draft.endTime, 
+              draft.imageUrl, 
+              draft.weighted ? 1 : 0 // Save as 1 or 0
+            );
+
             await interaction.editReply({ content: `Giveaway started!`, embeds: [], components: [] });
           } else {
             clearGiveawayTimer(draft.message_id);
