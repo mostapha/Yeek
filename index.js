@@ -3523,6 +3523,9 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           const gw = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(draft.message_id);
           let currentWinners = JSON.parse(gw.winners_json || '[]');
 
+          // NEW: Track ONLY the people who were drawn in this specific reroll
+          let newlyDrawnWinners = [];
+        
           if (draft.winnerNums && draft.winnerNums.length > 0) {
             // --- NEW MULTIPLE REROLL LOGIC ---
             // 1. Convert display numbers (1,3) to array indexes (0,2) and ensure they exist
@@ -3541,11 +3544,14 @@ Please follow the "How to apply" instructions below by sending your screenshots 
             for (let i = 0; i < validIndexes.length; i++) {
               if (newPicks[i]) {
                 currentWinners[validIndexes[i]] = newPicks[i];
+                newlyDrawnWinners.push(newPicks[i]); // Save the specific new winner
+                newlyDrawnWinners = [...currentWinners]; // Everyone is a new winner
               }
             }
           } else {
             // Reroll all
             currentWinners = pickWinners(draft.message_id, gw.winners_count, currentWinners);
+            newlyDrawnWinners = [...currentWinners]; // Everyone is a new winner
           }
 
           db.prepare('UPDATE giveaways SET winners_json = ? WHERE message_id = ?').run(JSON.stringify(currentWinners), draft.message_id);
@@ -3553,7 +3559,6 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           // ... (Keep the rest of your embed editing, joinCount fetching, and channel.send code here) ...
           const channel = await client.channels.fetch(gw.channel_id);
           const msg = await channel.messages.fetch(draft.message_id);
-        
           const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(draft.message_id).total;
         
           gw.status = 'ended'; 
@@ -3562,20 +3567,47 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           const disabledRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`gw_ended_${draft.message_id}`).setLabel(`${joinCount}`).setEmoji('🎉').setStyle(ButtonStyle.Primary).setDisabled(true)
           );
-
           await msg.edit({ embeds: [embed], components: [disabledRow] });
         
-          const winText = currentWinners.length > 0 ? currentWinners.map(w => `<@${w}>`).join(', ') : 'No one left in pool!';
-          await channel.send(`🔄 **Reroll!** New winner(s) of **${gw.name}**: ${winText}`);
+          // --- 2. THE NEW REROLL ANNOUNCEMENT SYSTEM ---
+          const allWinnersText = currentWinners.length > 0 ? currentWinners.map(w => `<@${w}>`).join(', ') : 'No one left in pool.';
+          const newWinnersText = newlyDrawnWinners.length > 0 ? newlyDrawnWinners.map(w => `<@${w}>`).join(', ') : '';
 
-          // 2. Edit the ORIGINAL announcement message if we saved its ID
+          const giveawayLink = `https://discord.com/channels/${msg.guildId}/${gw.channel_id}/${draft.message_id}`;
+          const linkRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel('View Giveaway').setStyle(ButtonStyle.Link).setURL(giveawayLink)
+          );
+
+          // Clean, minimal embed for the reroll announcement
+          const rerollEmbed = new EmbedBuilder()
+            .setTitle('Giveaway Rerolled')
+            .setColor('#3498DB') // A distinct blue to show it's an update
+            .setTimestamp();
+            
+          if (gw.image_url) rerollEmbed.setThumbnail(gw.image_url);
+
+          if (currentWinners.length > 0) {
+            rerollEmbed.addFields(
+              { name: 'Prize', value: `**${gw.name}**`, inline: false },
+              { name: 'Current Winner(s)', value: allWinnersText, inline: false }
+            );
+          } else {
+            rerollEmbed.setDescription('The giveaway was rerolled, but there were no eligible participants left.');
+          }
+
+          // ONLY ping the newly drawn winners outside the embed!
+          const pingContent = newWinnersText ? `Congratulations to the new winner(s): ${newWinnersText}!` : null;
+
+          await channel.send({ 
+            content: pingContent, 
+            embeds: [rerollEmbed], 
+            components: [linkRow] 
+          });
+
+          // --- 3. UPDATE THE ORIGINAL ANNOUNCEMENT MESSAGE ---
           if (gw.winner_message_id) {
             try {
               const oldAnnounceMsg = await channel.messages.fetch(gw.winner_message_id);
-                
-              // Rebuild the beautiful announcement embed
-              const giveawayLink = `https://discord.com/channels/${msg.guildId}/${gw.channel_id}/${draft.message_id}`;
-              const linkRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel('View Giveaway').setStyle(ButtonStyle.Link).setURL(giveawayLink));
                 
               const announceEmbed = new EmbedBuilder().setTimestamp();
               if (gw.image_url) announceEmbed.setThumbnail(gw.image_url);
@@ -3583,7 +3615,7 @@ Please follow the "How to apply" instructions below by sending your screenshots 
               let newContent = '';
 
               if (currentWinners.length > 0) {
-                announceEmbed.setTitle('🎊 Giveaway Ended! 🎊').setColor('#2ECC71');
+                announceEmbed.setTitle('Giveaway Ended').setColor('#2ECC71');
                     
                 if (currentWinners.length < gw.winners_count) {
                   announceEmbed.setDescription(`The giveaway for **${gw.name}** has ended!\n\n*Note: We wanted **${gw.winners_count}** winners, but only **${currentWinners.length}** people entered. They win by default!*`);
@@ -3592,16 +3624,17 @@ Please follow the "How to apply" instructions below by sending your screenshots 
                 }
 
                 announceEmbed.addFields(
-                  { name: 'Winner(s)', value: winText, inline: false },
+                  { name: 'Winner(s)', value: allWinnersText, inline: false },
                   { name: 'Prize', value: `**${gw.name}**`, inline: false }
                 );
-                newContent = `Congratulations ${winText}!`;
+                    
+                // We keep the original format for the edited msg (Discord doesn't send new pings on edits anyway)
+                newContent = `Congratulations ${allWinnersText}!`; 
               } else {
-                announceEmbed.setTitle('🎊 Giveaway Ended! 🎊').setColor('#E74C3C')
+                announceEmbed.setTitle('Giveaway Ended').setColor('#E74C3C')
                   .setDescription(`The giveaway for **${gw.name}** has ended, but unfortunately no one participated.`);
               }
 
-              // Push the edit to the old message!
               await oldAnnounceMsg.edit({ 
                 content: newContent || null, 
                 embeds: [announceEmbed], 
@@ -3612,8 +3645,8 @@ Please follow the "How to apply" instructions below by sending your screenshots 
               console.error('Could not find or edit the original announcement message:', err);
             }
           }
-        
-          await interaction.editReply({ content: 'Reroll complete!', components: [] });
+
+          await interaction.editReply({ content: '✅ Reroll complete!' });
         }
         giveawayDrafts.delete(draftId);
       }
