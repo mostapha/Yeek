@@ -65,6 +65,9 @@ const GIVEAWAY_WEIGHTS = {
   [TOP10_ROLE_ID]: 22
 };
 
+
+
+
 // Albion API base
 const ALBION_SEARCH_API = 'https://gameinfo-ams.albiononline.com/api/gameinfo/search?q=';
 
@@ -150,6 +153,42 @@ try {
 } catch (e) {
   // Ignore error: column already exists
 }
+
+
+
+
+const OPTIONAL_ROLES = [
+  { 
+    id: '1487566363533775010', // Replace with real ID
+    label: 'Giveaways', 
+    emoji: '🎉', 
+    customId: 'btn_opt_giveaways', 
+    style: 2,
+    description: 'Get pinged for giveaways and raffles.'
+  },
+  { 
+    id: '1487565750704144384', // Replace with real ID
+    label: 'Yellow Zone', 
+    emoji: '🟡', 
+    customId: 'btn_opt_yz', 
+    style: 2,
+    description: 'Get pinged by everyone to yellow zone content'
+  }
+];
+function generateOptionalRolesEmbed() {
+  const embed = new EmbedBuilder()
+    .setDescription('These are some extra roles you can optionally add or remove from your account. Click the button to toggle them.\n\n')
+    .setColor('#5865F2');
+
+  embed.addFields(...OPTIONAL_ROLES.map(n => ({
+    name: '',
+    value: n.emoji + ' · ' + n.description,
+    inline: false
+  })));
+
+  return embed
+}
+
 
 // Add this map near the top of index.js to hold unconfirmed previews
 const giveawayDrafts = new Map();
@@ -2795,7 +2834,7 @@ I made this based on my own experience and what I know about the weapons. There 
         const sub = interaction.options.getSubcommand();
 
         if (sub === 'create' || sub === 'edit') {
-          await interaction.deferReply({ ephemeral: true });
+          await interaction.deferReply({ flags: 64 });
         
           const isWeighted = interaction.options.getBoolean('weighted');
           let draft = {
@@ -2857,9 +2896,9 @@ I made this based on my own experience and what I know about the weapons. There 
         if (sub === 'end') {
           const msgId = interaction.options.getString('message_id');
           const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
-          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
+          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', flags: 64 });
         
-          await interaction.reply({ content: 'Ending...', ephemeral: true });
+          await interaction.reply({ content: 'Ending...', flags: 64 });
           clearGiveawayTimer(msgId);
           await endGiveaway(client, msgId);
           return;
@@ -2868,7 +2907,7 @@ I made this based on my own experience and what I know about the weapons. There 
         if (sub === 'cancel') {
           const msgId = interaction.options.getString('message_id');
           const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
-          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
+          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', flags: 64 });
         
           clearGiveawayTimer(msgId);
           db.prepare("UPDATE giveaways SET status = 'cancelled' WHERE message_id = ?").run(msgId);
@@ -2877,7 +2916,7 @@ I made this based on my own experience and what I know about the weapons. There 
             const msg = await channel.messages.fetch(msgId);
             await msg.delete();
           } catch (e) {}
-          return interaction.reply({ content: 'Cancelled and deleted.', ephemeral: true });
+          return interaction.reply({ content: 'Cancelled and deleted.', flags: 64 });
         }
 
         if (sub === 'reroll') {
@@ -2886,8 +2925,8 @@ I made this based on my own experience and what I know about the weapons. There 
         
           const existing = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(msgId);
         
-          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', ephemeral: true });
-          if (existing.status !== 'ended') return interaction.reply({ content: "Giveaway hasn't ended yet.", ephemeral: true });
+          if (!existing || existing.creator_id !== interaction.user.id) return interaction.reply({ content: 'Not found or not yours.', flags: 64 });
+          if (existing.status !== 'ended') return interaction.reply({ content: "Giveaway hasn't ended yet.", flags: 64 });
 
           // --- NEW STRING PARSER ---
           let winnerNums = null;
@@ -2898,7 +2937,7 @@ I made this based on my own experience and what I know about the weapons. There 
               .filter(n => !isNaN(n) && n > 0);
                 
             if (winnerNums.length === 0) {
-              return interaction.reply({ content: 'Invalid format. Use numbers separated by commas (e.g., 1,3,5).', ephemeral: true });
+              return interaction.reply({ content: 'Invalid format. Use numbers separated by commas (e.g., 1,3,5).', flags: 64 });
             }
           }
 
@@ -2911,7 +2950,7 @@ I made this based on my own experience and what I know about the weapons. There 
           );
         
           const targetText = winnerNums ? `winners: #${winnerNums.join(', #')}` : 'ALL winners';
-          return interaction.reply({ content: `Are you sure you want to reroll ${targetText}?`, components: [row], ephemeral: true });
+          return interaction.reply({ content: `Are you sure you want to reroll ${targetText}?`, components: [row], flags: 64 });
         }
       }
     }
@@ -3481,16 +3520,16 @@ Please follow the "How to apply" instructions below by sending your screenshots 
       if (interaction.customId.startsWith('gw_join_')) {
         const messageId = interaction.customId.split('_')[2];
         const giveaway = db.prepare("SELECT * FROM giveaways WHERE message_id = ? AND status = 'active'").get(messageId);
-        if (!giveaway) return interaction.reply({ content: 'This giveaway is over.', ephemeral: true });
+        if (!giveaway) return interaction.reply({ content: 'This giveaway is over.', flags: 64 });
 
         if (giveaway.role_id && !interaction.member.roles.cache.has(giveaway.role_id)) {
-          return interaction.reply({ content: `You are missing the <@&${giveaway.role_id}> role.`, ephemeral: true });
+          return interaction.reply({ content: `You are missing the <@&${giveaway.role_id}> role.`, flags: 64 });
         }
 
         const existing = db.prepare('SELECT 1 FROM giveaway_joins WHERE message_id = ? AND user_id = ?').get(messageId, interaction.user.id);
         if (existing) {
           const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`gw_leave_${messageId}`).setLabel('Leave Giveaway').setStyle(ButtonStyle.Danger));
-          return interaction.reply({ content: 'You already joined!', components: [row], ephemeral: true });
+          return interaction.reply({ content: 'You already joined!', components: [row], flags: 64 });
         }
 
         let userWeight = 1; // Default to 1 (Equal Chance)
@@ -3511,7 +3550,7 @@ Please follow the "How to apply" instructions below by sending your screenshots 
         pendingGiveawayUpdates.add(messageId);
 
         // 3. Reply instantly to the user
-        return interaction.reply({ content: '🎉 Nice, you joined the giveaway, good luck!', ephemeral: true });
+        return interaction.reply({ content: '🎉 Nice, you joined the giveaway, good luck!', flags: 64 });
       }
 
       if (interaction.customId.startsWith('gw_leave_')) {
@@ -4714,15 +4753,14 @@ function generateRoleSelectionEmbed(guild) {
   const tankRole = guild.roles.cache.get(ROLE_CONFIG.Tank.id);
 
   return new EmbedBuilder()
-    .setTitle('Pick your roles')
-    .setDescription('Use the buttons below to add or remove zvz roles to your profile.')
+    .setDescription('Here you can choose the roles you mostly play in ZvZ. The bot may also assign these roles to you based on your sign-ups.')
     .addFields(
       { name: 'DPS', value: `${dpsRole?.members.size || 0} players`, inline: true },
       { name: 'Tanks', value: `${tankRole?.members.size || 0} players`, inline: true },
       { name: 'Supports', value: `${supportRole?.members.size || 0} players`, inline: true },
       { name: 'Healers', value: `${healerRole?.members.size || 0} players`, inline: true }
     )
-    .setColor('#2b2d31');
+    .setColor('#5865F2');
 }
 
 // --- SETUP COMMAND ---
@@ -4760,50 +4798,101 @@ client.on('messageCreate', async (message) => {
   if (message.content === '!setup-roles' && message.member.permissions.has('Administrator')) {
     await message.guild.members.fetch(); 
 
-    // Generate the embed using our new helper function
-    const embed = generateRoleSelectionEmbed(message.guild);
-
-    const row = new ActionRowBuilder().addComponents(
+    // --- 1. SEND MAIN ROLES EMBED ---
+    const mainEmbed = generateRoleSelectionEmbed(message.guild);
+    const mainRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('btn_role_dps').setLabel('DPS').setStyle(ROLE_CONFIG.DPS.style).setEmoji('1303214793120944188'),
       new ButtonBuilder().setCustomId('btn_role_tank').setLabel('Tank').setStyle(ROLE_CONFIG.Tank.style).setEmoji('1303214800137883699'),
       new ButtonBuilder().setCustomId('btn_role_support').setLabel('Support').setStyle(ROLE_CONFIG.Support.style).setEmoji('1303214797663506433'),
       new ButtonBuilder().setCustomId('btn_role_healer').setLabel('Healer').setStyle(ROLE_CONFIG.Healer.style).setEmoji('1303214795188736024')
     );
+    await message.channel.send({ content: '## ZvZ roles', embeds: [mainEmbed], components: [mainRow] });
 
-    await message.channel.send({ embeds: [embed], components: [row] });
+
+    // --- 2. SEND OPTIONAL ROLES EMBED ---
+    const optionalEmbed = generateOptionalRolesEmbed();
+    const optionalRows = [];
+    
+    // This chunks buttons into rows of 5 automatically
+    for (let i = 0; i < OPTIONAL_ROLES.length; i += 5) {
+      const row = new ActionRowBuilder().addComponents(
+        OPTIONAL_ROLES.slice(i, i + 5).map(role => 
+          new ButtonBuilder()
+            .setCustomId(role.customId)
+            .setLabel(role.label)
+            .setStyle(role.style)
+            .setEmoji(role.emoji)
+        )
+      );
+      optionalRows.push(row);
+    }
+    await message.channel.send({ 
+      content: '## Other self roles',
+      embeds: [optionalEmbed],
+      components: optionalRows 
+    });
+
+    // Clean up the command
     await message.delete().catch(() => {}); 
   }
+  
 });
 
 // --- BUTTON HANDLER ---
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton() || !interaction.customId.startsWith('btn_role_')) return;
-
-  await interaction.deferUpdate(); 
+  if (!interaction.isButton()) return;
 
   const guild = interaction.guild;
   const member = interaction.member;
 
-  let roleIdToToggle;
-  if (interaction.customId === 'btn_role_dps') roleIdToToggle = ROLE_CONFIG.DPS.id;
-  if (interaction.customId === 'btn_role_tank') roleIdToToggle = ROLE_CONFIG.Tank.id;
-  if (interaction.customId === 'btn_role_healer') roleIdToToggle = ROLE_CONFIG.Healer.id;
-  if (interaction.customId === 'btn_role_support') roleIdToToggle = ROLE_CONFIG.Support.id;
+  // ==========================================
+  // HANDLER FOR MAIN ZVZ ROLES (WITH COUNTERS)
+  // ==========================================
+  if (interaction.customId.startsWith('btn_role_')) {
+    await interaction.deferUpdate(); 
 
-  if (!roleIdToToggle) return;
+    let roleIdToToggle;
+    if (interaction.customId === 'btn_role_dps') roleIdToToggle = ROLE_CONFIG.DPS.id;
+    if (interaction.customId === 'btn_role_tank') roleIdToToggle = ROLE_CONFIG.Tank.id;
+    if (interaction.customId === 'btn_role_healer') roleIdToToggle = ROLE_CONFIG.Healer.id;
+    if (interaction.customId === 'btn_role_support') roleIdToToggle = ROLE_CONFIG.Support.id;
 
-  if (member.roles.cache.has(roleIdToToggle)) {
-    await member.roles.remove(roleIdToToggle);
-    await interaction.followUp({ content: `<@&${roleIdToToggle}> role removed from you`, flags: 64 });
-  } else {
-    await member.roles.add(roleIdToToggle);
-    await interaction.followUp({ content: `<@&${roleIdToToggle}> role added to you`, flags: 64 });
+    if (!roleIdToToggle) return;
+
+    if (member.roles.cache.has(roleIdToToggle)) {
+      await member.roles.remove(roleIdToToggle);
+      await interaction.followUp({ content: `<@&${roleIdToToggle}> role removed from you`, flags: 64 });
+    } else {
+      await member.roles.add(roleIdToToggle);
+      await interaction.followUp({ content: `<@&${roleIdToToggle}> role added to you`, flags: 64 });
+    }
+
+    // Generate and edit the updated embed with counters
+    const updatedEmbed = generateRoleSelectionEmbed(guild);
+    await interaction.message.edit({ embeds: [updatedEmbed] });
   }
 
-  // Generate the updated embed using our helper function
-  const updatedEmbed = generateRoleSelectionEmbed(guild);
+  // ==========================================
+  // HANDLER FOR OPTIONAL ROLES (NO COUNTERS)
+  // ==========================================
+  else if (interaction.customId.startsWith('btn_opt_')) {
+    // Look up the role in our new configuration array
+    const roleConfig = OPTIONAL_ROLES.find(r => r.customId === interaction.customId);
+    if (!roleConfig) return;
 
-  await interaction.message.edit({ embeds: [updatedEmbed] });
+    await interaction.deferReply({ flags: 64 }); // deferReply is slightly cleaner here since we aren't editing the message
+
+    const roleIdToToggle = roleConfig.id;
+
+    if (member.roles.cache.has(roleIdToToggle)) {
+      await member.roles.remove(roleIdToToggle);
+      await interaction.editReply({ content: `The **${roleConfig.label}** role was removed.` });
+    } else {
+      await member.roles.add(roleIdToToggle);
+      await interaction.editReply({ content: `The **${roleConfig.label}** role was added to you.` });
+    }
+    // Notice we do NOT edit interaction.message here, because there are no counters to update!
+  }
 });
 
 
