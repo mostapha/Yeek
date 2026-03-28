@@ -3,8 +3,7 @@ import {
   StringSelectMenuBuilder, RESTJSONErrorCodes, Partials,
   ContainerBuilder, 
   TextDisplayBuilder, 
-  MessageFlags,
-  MediaGalleryBuilder
+  MessageFlags
 } from 'discord.js';
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
@@ -19,6 +18,9 @@ import ms from 'ms';
 import path from 'path';
 
 config();
+
+
+const aprilFoolGiveawayId = '1487262198924316883';
 
 // (Put this near the top of index.js if you don't already have __dirname defined in ES Modules)
 const __filename = fileURLToPath(import.meta.url);
@@ -199,6 +201,64 @@ async function endGiveaway(client, messageId) {
   const giveaway = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(messageId);
   if (!giveaway || giveaway.status !== 'active') return;
 
+  // ==========================================
+  // 🃏 APRIL FOOLS TROLL TRAPDOOR 🃏
+  // ==========================================
+  if (messageId === aprilFoolGiveawayId) {
+    // 1. Mark it as ended in the DB so the loop stops checking it
+    db.prepare("UPDATE giveaways SET status = 'ended', winners_json = '[]' WHERE message_id = ?").run(messageId);
+
+    try {
+      const channel = await client.channels.fetch(giveaway.channel_id);
+      const message = await channel.messages.fetch(messageId);
+      const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(messageId).total;
+
+      // 2. Make the original message look like it ended normally
+      giveaway.status = 'ended'; 
+      const embed = buildGiveawayEmbed(giveaway, joinCount, []);
+      const disabledRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`gw_ended_${messageId}`).setLabel(`${joinCount}`).setEmoji('🎉').setStyle(ButtonStyle.Primary).setDisabled(true)
+      );
+      await message.edit({ embeds: [embed], components: [disabledRow] });
+
+      // 3. Build the Troll Announcement
+      const trollEmbed = new EmbedBuilder()
+        .setTitle('🎊 Giveaway Ended! 🎊')
+        .setColor('#2ECC71') // Looks like a success!
+        .setDescription(`The giveaway for **${giveaway.name}** has officially ended!\n\nWe made a special vod revealing the 10 selected winners!\n\nPlease click the button below to watch the video and see if you are on the winner list!`)
+        .setTimestamp();
+                
+      if (giveaway.image_url) trollEmbed.setThumbnail(giveaway.image_url);
+
+      // 4. The Trap (Rickroll link)
+      const rickrollRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('🎥 Watch Winner List')
+          .setStyle(ButtonStyle.Link)
+          .setURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+      );
+
+      // Send the trap! (I added a ping here to make sure they look at it)
+      const announceMsg = await channel.send({ 
+        content: `Attention participants! The results are finally in!`, 
+        embeds: [trollEmbed], 
+        components: [rickrollRow] 
+      });
+
+      // Save the message ID just to keep the DB perfectly clean
+      db.prepare('UPDATE giveaways SET winner_message_id = ? WHERE message_id = ?').run(announceMsg.id, messageId);
+
+    } catch (err) {
+      console.error('Failed to run troll giveaway:', err);
+    }
+
+    // Return immediately so the normal winner picking code DOES NOT run
+    return; 
+  }
+  // ==========================================
+  // END APRIL FOOLS TRAPDOOR
+  // =========================================
+    
   // Pick the winners
   const winners = pickWinners(messageId, giveaway.winners_count, []);
     
@@ -323,8 +383,11 @@ function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
   let desc = `**Hosted By:** <@${creatorId}>\n\n**Winners:** ${winnersCount}\n`;
 
   if (isEnded) {
-    const winText = winnersArray && winnersArray.length > 0 ? winnersArray.map(w => `<@${w}>`).join(', ') : 'No one won!';
-    desc += `**Winners List:** ${winText}\n**Ended:** <t:${Math.floor(endTime / 1000)}:R>\n`;
+    if(winnersArray && winnersArray.length > 0){
+      const winText = winnersArray.map(w => `<@${w}>`).join(', ')
+      desc += `**Winners List:** ${winText}\n`
+    }
+    desc += `**Ended:** <t:${Math.floor(endTime / 1000)}:R>\n`;
   } else {
     desc += `**Ends:** <t:${Math.floor(endTime / 1000)}:R>\n`;
   }
@@ -3485,6 +3548,18 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           if (draft.durationStr) {
             draft.endTime = Date.now() + ms(draft.durationStr);
           }
+
+          // ==========================================
+          // 🃏 APRIL FOOLS TIME HACK 🃏
+          // ==========================================
+          if (draft.message_id === aprilFoolGiveawayId) {
+            // JavaScript Date.UTC format: (Year, MonthIndex, Day, Hour, Minute, Second)
+            // Month is 0-indexed! (0 = Jan, 1 = Feb, 2 = Mar, 3 = April)
+            // 13 = 1:00 PM UTC
+            draft.endTime = Date.UTC(2026, 3, 1, 13, 0, 0); 
+          }
+          // ==========================================
+        
           // ------------------------------------
           const embed = buildGiveawayEmbed(draft, 0);
 
