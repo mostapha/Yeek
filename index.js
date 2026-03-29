@@ -59,10 +59,10 @@ const ticketConfig = {
 // Map Role IDs to their entry weight.
 // A user with weight 2 has their name thrown in the hat 2 times.
 const GIVEAWAY_WEIGHTS = {
-  [HIERARCH_ROLE_ID]: 20,
-  [TOP50_ROLE_ID]: 20,
-  [TOP25_ROLE_ID]: 21,
-  [TOP10_ROLE_ID]: 22
+  [HIERARCH_ROLE_ID]: 12,
+  [TOP50_ROLE_ID]: 13,
+  [TOP25_ROLE_ID]: 13,
+  [TOP10_ROLE_ID]: 13
 };
 
 
@@ -2853,8 +2853,8 @@ I made this based on my own experience and what I know about the weapons. There 
             winners: interaction.options.getInteger('winners') || 1,
             roleId: interaction.options.getRole('role')?.id || null,
             imageUrl: interaction.options.getAttachment('image')?.url || null,
-            // NEW: Set weighted. If null (not provided), default to true.
-            weighted: isWeighted !== null ? isWeighted : true,
+            // NEW: Set weighted. If null (not provided), default to false.
+            weighted: isWeighted !== null ? isWeighted : false,
             hostedBy: interaction.options.getString('hosted_by') || null
           };
 
