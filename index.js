@@ -148,8 +148,7 @@ db.exec(`
 `);
 
 try {
-  // 1 = True (Weighted), 0 = False (Equal Chance)
-  db.exec('ALTER TABLE giveaways ADD COLUMN weighted INTEGER DEFAULT 1;');
+  db.exec('ALTER TABLE giveaways ADD COLUMN hosted_by TEXT;');
 } catch (e) {
   // Ignore error: column already exists
 }
@@ -407,7 +406,7 @@ function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
   const imageUrl = data.image_url || data.imageUrl;
   const status = data.status || 'active'; // Drafts default to active
   const creatorId = data.creator_id; // <-- Grab the creator ID!
-
+  const hostedBy = data.hosted_by || data.hostedBy; // Get the custom string
   const isEnded = status === 'ended';
   const embed = new EmbedBuilder();
 
@@ -418,8 +417,16 @@ function buildGiveawayEmbed(data, participantCount = 0, winnersArray = null) {
     embed.setTitle(`🎉 ${name} 🎉`).setColor('#528cc4'); // Red
   }
 
-  // 3. Build Description
-  let desc = `**Hosted By:** <@${creatorId}>\n\n**Winners:** ${winnersCount}\n`;
+  let desc = '';
+
+  // If a custom host was provided, add the "Hosted By" line!
+  if (hostedBy) {
+    desc += `**Hosted By:** ${hostedBy}\n`;
+  } else {
+    desc = `**Posted By:** <@${creatorId}>\n`;
+  }
+
+  desc += `\n**Winners:** ${winnersCount}\n`
 
   if (isEnded) {
     if(winnersArray && winnersArray.length > 0){
@@ -2847,7 +2854,8 @@ I made this based on my own experience and what I know about the weapons. There 
             roleId: interaction.options.getRole('role')?.id || null,
             imageUrl: interaction.options.getAttachment('image')?.url || null,
             // NEW: Set weighted. If null (not provided), default to true.
-            weighted: isWeighted !== null ? isWeighted : true
+            weighted: isWeighted !== null ? isWeighted : true,
+            hostedBy: interaction.options.getString('hosted_by') || null
           };
 
           if (sub === 'edit') {
@@ -2865,6 +2873,7 @@ I made this based on my own experience and what I know about the weapons. There 
             draft.imageUrl = draft.imageUrl || existing.image_url;
             // NEW: Inherit the existing weighted setting so the embed builder knows what to display
             draft.weighted = existing.weighted === 1;
+            draft.hostedBy = interaction.options.getString('hosted_by') || existing.hosted_by;
             if (!draft.durationStr) draft.endTime = existing.end_time;
           }
 
@@ -3612,7 +3621,7 @@ Please follow the "How to apply" instructions below by sending your screenshots 
             joinRow.components[0].setCustomId(`gw_join_${msg.id}`);
             await msg.edit({ components: [joinRow] });
 
-            db.prepare(`INSERT INTO giveaways (message_id, channel_id, creator_id, name, winners_count, role_id, end_time, image_url, weighted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+            db.prepare(`INSERT INTO giveaways (message_id, channel_id, creator_id, name, winners_count, role_id, end_time, image_url, weighted, hosted_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
               msg.id, 
               draft.channel_id, 
               draft.creator_id, 
@@ -3621,13 +3630,14 @@ Please follow the "How to apply" instructions below by sending your screenshots 
               draft.roleId, 
               draft.endTime, 
               draft.imageUrl, 
-              draft.weighted ? 1 : 0 // Save as 1 or 0
+              draft.weighted ? 1 : 0,
+              draft.hostedBy
             );
 
             await interaction.editReply({ content: `Giveaway started!`, embeds: [], components: [] });
           } else {
             clearGiveawayTimer(draft.message_id);
-            db.prepare(`UPDATE giveaways SET name=?, winners_count=?, role_id=?, end_time=?, image_url=? WHERE message_id=?`).run(draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl, draft.message_id);
+            db.prepare(`UPDATE giveaways SET name=?, winners_count=?, role_id=?, end_time=?, image_url=?, hosted_by=? WHERE message_id=?`).run(draft.name, draft.winners, draft.roleId, draft.endTime, draft.imageUrl, draft.hostedBy, draft.message_id);
             const channel = await client.channels.fetch(draft.channel_id);
             const msg = await channel.messages.fetch(draft.message_id);
             await msg.edit({ embeds: [embed] });
@@ -3659,7 +3669,6 @@ Please follow the "How to apply" instructions below by sending your screenshots 
               if (newPicks[i]) {
                 currentWinners[validIndexes[i]] = newPicks[i];
                 newlyDrawnWinners.push(newPicks[i]); // Save the specific new winner
-                newlyDrawnWinners = [...currentWinners]; // Everyone is a new winner
               }
             }
           } else {
