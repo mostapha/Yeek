@@ -4619,7 +4619,8 @@ client.on('messageCreate', async (message) => {
       `[MurderLedger](https://murderledger-europe.albiononline2d.com/players/${gameName}/ledger)`,
       `[Albion killboard](https://albiononline.com/killboard/player/${gameId})`,
       `[AlbionBB](https://europe.albionbb.com/players/${gameName})`,
-      `[killboard-1](https://killboard-1.com/eu/player/${gameName})`
+      `[killboard-1](https://killboard-1.com/eu/player/${gameName})`,
+      `[AlbionDB](https://europe.albiondb.net/player/${gameName})`,
     ].join('\n');
 
     // build a display for the "User" field: ping when lookup used a mention, otherwise show the tag (no ping)
