@@ -1684,8 +1684,9 @@ async function executeRegisterLogic({ source, targetUser, gameName, executorMemb
   let match = null;
   for (const p of players) {
     if (p.Name.toLowerCase() === targetName) {
-      if (p.KillFame !== 0) { match = p; break; }
-      if (!match) match = p;
+      if (!match || p.KillFame > match.KillFame) {
+        match = p;
+      }
     }
   }
   const player = match;
