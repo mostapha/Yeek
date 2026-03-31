@@ -4463,13 +4463,7 @@ client.on('messageCreate', async (message) => {
     for (const p of players) {
       // Check name match first to avoid checking fame unnecessarily
       if (p.Name.toLowerCase() === targetName) {
-        // If we find a player with Fame, return immediately (Best Case)
-        if (p.KillFame !== 0) {
-          match = p;
-          break; 
-        }
-        // If we haven't found a match yet, store this as a fallback (0 Fame)
-        if (!match) {
+        if (!match || p.KillFame > match.KillFame) {
           match = p;
         }
       }
@@ -4568,13 +4562,7 @@ client.on('messageCreate', async (message) => {
         // Single loop: Find exact name, prioritizing KillFame > 0
         for (const p of foundPlayers) {
           if (p.Name.toLowerCase() === targetName) {
-            // Priority: If they have Fame, pick them and stop looking immediately
-            if (p.KillFame > 0) {
-              bestMatch = p;
-              break; 
-            }
-            // Fallback: If we haven't found a match yet, keep this one (0 Fame)
-            if (!bestMatch) {
+            if (!bestMatch || p.KillFame > bestMatch.KillFame) {
               bestMatch = p;
             }
           }
