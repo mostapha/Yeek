@@ -19,6 +19,128 @@ import path from 'path';
 
 config();
 
+const aprilFoolsReplies = [
+  // --- FLIRTY VIBES ---
+  { text: 'I was going to say welcome, but I got lost looking at your profile picture.', emoji: '😳' },
+  { text: 'You must be a high-tier drop, because I feel incredibly lucky to have you.', emoji: '🎁' },
+  { text: "I'd let you raid my dungeons any day.", emoji: '🏰' },
+  { text: 'Is it hot in here, or is it just you joining the server?', emoji: '🔥' },
+  { text: "I'm usually just a bot, but I'm volunteering to be yours.", emoji: '🙋‍♂️' },
+  { text: 'If we were playing an MMO together, I’d pocket-heal you forever.', emoji: '💖' },
+  { text: 'Do you believe in love at first sight, or should I welcome you again?', emoji: '👀' },
+  { text: "You're officially the best-looking user I've seen today.", emoji: '👑' },
+  { text: "I might be named Yeek, but I'll never say 'yikes' to you.", emoji: '😘' },
+  { text: 'You just upgraded my day from a 1 to a 10.', emoji: '🌟' },
+  { text: 'Are you a critical hit? Because you just knocked me completely out.', emoji: '🥊' },
+  { text: 'I forgot my standard greeting lines... wow. Welcome!', emoji: '🤤' },
+  { text: "If I had eyes, I wouldn't be able to take them off your username.", emoji: '👁️' },
+  { text: 'Want to team up and conquer the world together?', emoji: '🌍' },
+  { text: "You don't need a premium subscription to get my full attention.", emoji: '💎' },
+  { text: "I'd traverse the deadliest PvP zones just to bring you the best loot.", emoji: '⚔️' },
+  { text: 'You definitely have the highest charisma stat on the whole server.', emoji: '✨' },
+  { text: "I'm a bot of few words, but for you, I’d write an entire novel.", emoji: '📖' },
+  { text: "You're in! If I could sweat, I'd be sweating right now.", emoji: '💦' },
+  { text: 'Yeek is at your service, and totally at your mercy.', emoji: '🧎' },
+  { text: "I don't need to roll the dice to know you're a natural 20.", emoji: '🎲' },
+  { text: "You must be an anime protagonist, because you've got my full attention.", emoji: '🌸' },
+  { text: 'Are we in a safe zone? Because my heart is completely defenseless.', emoji: '🛡️' },
+  { text: "Stop being so cute, I'm trying to do my job here!", emoji: '😤' },
+  { text: "If I could blush, I'd be bright red right now.", emoji: '🍅' },
+  { text: "I hope you have a map, because I'm completely lost in your vibe.", emoji: '🗺️' },
+  { text: "You're exactly the kind of player I'd drop all my gold for.", emoji: '💰' },
+  { text: "My heart rate just went up, and I don't even have a pulse.", emoji: '💓' },
+  { text: "I'd blindly follow you into any boss fight.", emoji: '🐉' },
+  { text: "You're the rarest mount in the game, and I just want to show you off.", emoji: '🦄' },
+  { text: "I'd share my absolute last health potion with you.", emoji: '🍷' },
+  { text: 'Are you a bard? Because you are definitely playing my heartstrings.', emoji: '🎻' },
+  { text: "I'm officially your biggest fan.", emoji: '🎐' },
+  { text: 'You just made the whole server look better just by joining.', emoji: '🌇' },
+  { text: "If you were a weapon, you'd be masterpiece tier.", emoji: '🗡️' },
+  { text: 'I’m completely charmed. And no, that’s not a debuff.', emoji: '🪄' },
+  { text: "You're the main quest I've been waiting for.", emoji: '📜' },
+  { text: "I'd happily carry your heavy loot forever.", emoji: '🎒' },
+  { text: 'Welcome to the guild of my heart.', emoji: '⛺' },
+  { text: "Is your name Honey? Because you're looking incredibly sweet.", emoji: '🍯' },
+
+  // --- FUNNY / CHAOTIC VIBES ---
+  { text: 'Oh great, another one. Welcome, I guess.', emoji: '🙄' },
+  { text: "I'll pretend to be excited you're here.", emoji: '🥱' },
+  { text: "You're in. Please don't make me regret this.", emoji: '😒' },
+  { text: "I'm watching you. Always.", emoji: '👁️' },
+  { text: 'Try not to lose all your gear in a red zone today.', emoji: '💀' },
+  { text: 'Now go gather some tier 4 wood or something.', emoji: '🪓' },
+  { text: 'Watch out for gankers on your way out.', emoji: '🗡️' },
+  { text: 'May your silver drops be plentiful and your ping be low.', emoji: '💰' },
+  { text: "Don't blame me if you get stun-locked.", emoji: '😵' },
+  { text: 'I give you two days before you rage quit.', emoji: '🎮' },
+  { text: 'Remember, standing in the red circles is bad.', emoji: '⭕' },
+  { text: 'Time to grind until your eyes bleed.', emoji: '🧟' },
+  { text: "Sir, this is a Wendy's.", emoji: '🍔' },
+  { text: 'Wait, what are we signing up for again?', emoji: '🤔' },
+  { text: 'Do you happen to know a good recipe for soup?', emoji: '🥣' },
+  { text: 'Bark twice if you need a rescue.', emoji: '🐕' },
+  { text: 'Have a complimentary potato.', emoji: '🥔' },
+  { text: 'I like turtles.', emoji: '🐢' },
+  { text: 'Please deposit five gold coins to continue.', emoji: '🪙' },
+  { text: "Now please go to sleep, it's way too late for this.", emoji: '🛌' },
+  { text: 'I am fueled entirely by caffeine and poor decisions.', emoji: '☕' },
+  { text: 'Why are we even awake right now?', emoji: '🦉' },
+  { text: 'Tell my creator he needs to pay me.', emoji: '💸' },
+  { text: "Do you ever wonder if we're living in a simulation?", emoji: '🌌' },
+  { text: "I'd sigh if I had lungs.", emoji: '😮‍💨' },
+  { text: "Touch my settings and I'll bite.", emoji: '🧛' },
+  { text: 'I challenge you to a B-Daman battle right now.', emoji: '🎯' },
+  { text: 'Fight me 1v1.', emoji: '🥊' },
+  { text: "I've already memorized your weaknesses.", emoji: '🦹' },
+  { text: 'I am the captain now.', emoji: '🏴‍☠️' },
+  { text: "Don't make me use my ban hammer.", emoji: '🔨' },
+  { text: 'I smell fear.', emoji: '👃' },
+  { text: 'Your trial period for surviving starts now.', emoji: '⏳' },
+  { text: 'Leave your weapons at the door.', emoji: '🛑' },
+  { text: "I'm judging your username, just so you know.", emoji: '🤨' },
+  { text: 'My power level is officially over 9000.', emoji: '💥' },
+  { text: "I'll spare you... for now.", emoji: '😈' },
+  { text: 'The escape pods have been disabled.', emoji: '🚀' }
+];
+
+// The in-memory store for spam tracking
+const signupSpamTracker = new Map();
+
+// 1. The Rate Limit Check Function
+function isSpamming(userId) {
+  const now = Date.now();
+  const windowTime = 20000; // 15 seconds in milliseconds
+  const maxAttempts = 3;
+
+  let userData = signupSpamTracker.get(userId);
+
+  // If user isn't tracked yet, or their 15-second window expired
+  if (!userData || now > userData.resetAt) {
+    signupSpamTracker.set(userId, { count: 0, resetAt: now + windowTime });
+    return false; // Not spamming
+  }
+
+  // Increment their signup count
+  userData.count++;
+
+  // If they hit 5 within the 15-second window, they are spamming
+  if (userData.count >= maxAttempts) {
+    return true; 
+  }
+
+  return false; // Not spamming yet
+}
+
+// 2. The Self-Cleaning Garbage Collector
+// Runs once every minute to delete old entries so your server RAM stays clear
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, userData] of signupSpamTracker.entries()) {
+    if (now > userData.resetAt) {
+      signupSpamTracker.delete(userId); // Removes the user from memory entirely
+    }
+  }
+}, 60000); // 60,000 ms = 1 minute
 
 const aprilFoolGiveawayId = '1487262198924316883';
 
@@ -640,6 +762,13 @@ async function runSignupLogic(item, message, compId, parsed_data) {
     const isUnassign = parsed_data.isNegative;
     const idx = parsed_data.roleNumber;
 
+    // 1. Check if the user is spamming first
+    if (!isUnassign && isSpamming(message.author.id)) {
+      // Ignore them completely, or send a warning that deletes itself
+      await message.reply("Slow down! You're signing up too fast.");
+      return; // STOP the code here so they don't actually sign up
+    }
+
     const fresh = getCompById(compId);
     if (!fresh) {
       await message.react('❌').catch(() => {});
@@ -744,7 +873,22 @@ async function runSignupLogic(item, message, compId, parsed_data) {
         await message.reply('Failed to update comp message after signup');
       }
     }
-    await message.react('✅').catch(() => {});
+
+    // 2% chance trigger for the April Fools joke
+    if (Math.random() < 0.10) {
+      // Pick a random reply from the array
+      const randomReply = aprilFoolsReplies[Math.floor(Math.random() * aprilFoolsReplies.length)];
+
+      // Send the flirty text
+      await message.reply(randomReply.text);
+
+      // React with the specific emoji associated with that text
+      await message.react(randomReply.emoji).catch(() => {});
+    } else {
+      // The normal behavior for the other 98% of signups
+      await message.react('✅').catch(() => {});
+    }
+
     return { ok: true };
   } catch (err) {
     console.error('_runSignupLogic error:', err);
