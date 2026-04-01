@@ -61,6 +61,7 @@ const aprilFoolsReplies = [
   { text: "I'd happily carry your heavy loot forever.", emoji: '🎒' },
   { text: 'Welcome to the guild of my heart.', emoji: '⛺' },
   { text: "Is your name Honey? Because you're looking incredibly sweet.", emoji: '🍯' },
+  { text: 'Are we going to bully Thetford again?', emoji: '😈' },
 
   // --- FUNNY / CHAOTIC VIBES ---
   { text: 'Oh great, another one. Welcome, I guess.', emoji: '🙄' },
