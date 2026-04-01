@@ -874,8 +874,8 @@ async function runSignupLogic(item, message, compId, parsed_data) {
       }
     }
 
-    // 2% chance trigger for the April Fools joke
-    if (Math.random() < 0.10) {
+    // 15% chance trigger for the April Fools joke
+    if (Math.random() < 0.15) {
       // Pick a random reply from the array
       const randomReply = aprilFoolsReplies[Math.floor(Math.random() * aprilFoolsReplies.length)];
 
