@@ -20,7 +20,6 @@ import path from 'path';
 config();
 
 const aprilFoolsReplies = [
-
   { text: 'Another one? Try not to be a waste of space.', emoji: '🙄' },
   { text: "You're in. Try not to get clapped in the first engage.", emoji: '💀' },
   { text: "Signed up. Don't make me regret wasting a slot on you.", emoji: '🚮' },
@@ -97,7 +96,7 @@ const aprilFoolsReplies = [
   { text: 'I was going to say welcome, but I got lost looking at your profile picture.', emoji: '😳' },
   { text: 'You must be a high-tier drop, because I feel incredibly lucky to have you.', emoji: '🎁' },
   { text: "I'd let you raid my dungeons any day.", emoji: '🏰' },
-  { text: 'Is it hot in here, or is it just you joining the server?', emoji: '🔥' },
+  { text: 'Is it hot in here, or is it just you joining the mass?', emoji: '🔥' },
   { text: "I'm usually just a bot, but I'm volunteering to be yours.", emoji: '🙋‍♂️' },
   { text: 'If we were playing an MMO together, I’d pocket-heal you forever.', emoji: '💖' },
   { text: 'Do you believe in love at first sight, or should I welcome you again?', emoji: '👀' },
@@ -117,12 +116,13 @@ const aprilFoolsReplies = [
   { text: "You're exactly the kind of player I'd drop all my gold for.", emoji: '💰' },
   { text: "My heart rate just went up, and I don't even have a pulse.", emoji: '💓' },
   { text: "I'd blindly follow you into any fight.", emoji: '🐉' },
-  { text: "I'd share my absolute last giga potion with you.", emoji: '🍷' },
+  { text: "I'd share my absolute last niga potion with you.", emoji: '🍷' },
   { text: "I'm officially your biggest fan.", emoji: '🎐' },
-  { text: 'You just made the whole server look better just by joining.', emoji: '🌇' },
+  { text: 'You just made the whole mass look better just by joining.', emoji: '🌇' },
   { text: "You're the main quest I've been waiting for.", emoji: '📜' },
   { text: "I'd happily carry your heavy loot forever.", emoji: '🎒' },
   { text: "Is your name Honey? Because you're looking incredibly sweet.", emoji: '🍯' },
+  { text: 'Done. Try not to die first engage.', emoji: '💀' }
 
 ];
 
@@ -898,9 +898,14 @@ async function runSignupLogic(item, message, compId, parsed_data) {
     }
 
     // 20% chance trigger for the April Fools joke
-    if (Math.random() < 0.2) {
-      // Pick a random reply from the array
-      const randomReply = aprilFoolsReplies[Math.floor(Math.random() * aprilFoolsReplies.length)];
+    if (Math.random() < 0.2 && aprilFoolsReplies.length > 0) {
+
+      // 2. Pick a random index
+      const randomIndex = Math.floor(Math.random() * aprilFoolsReplies.length);
+  
+      // 3. Remove the reply from the array using splice (returns an array of 1 item)
+      const [randomReply] = aprilFoolsReplies.splice(randomIndex, 1);
+
 
       // Send the flirty text
       await message.reply(randomReply.text);
