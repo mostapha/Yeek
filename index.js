@@ -3,7 +3,8 @@ import {
   StringSelectMenuBuilder, RESTJSONErrorCodes, Partials,
   ContainerBuilder, 
   TextDisplayBuilder, 
-  MessageFlags
+  MessageFlags,
+  MediaGalleryBuilder, SeparatorBuilder
 } from 'discord.js';
 import { config } from 'dotenv';
 import { readFile, writeFile } from 'fs/promises';
@@ -3316,10 +3317,19 @@ I made this based on my own experience and what I know about the weapons. There 
 
       await interaction.deferReply({ flags: 64 });
 
-      // Get next ticket number
       const getCount = db.prepare('SELECT current_count FROM ticket_counter WHERE id = 1').get();
-      const nextNumber = getCount ? getCount.current_count + 1 : 1;
-      db.prepare('UPDATE ticket_counter SET current_count = ? WHERE id = 1').run(nextNumber);
+
+      let nextNumber;
+
+      if (!getCount) {
+        // The row doesn't exist (table is empty). We MUST insert it.
+        nextNumber = 1;
+        db.prepare('INSERT INTO ticket_counter (id, current_count) VALUES (1, ?)').run(nextNumber);
+      } else {
+        // The row exists. We update it.
+        nextNumber = getCount.current_count + 1;
+        db.prepare('UPDATE ticket_counter SET current_count = ? WHERE id = 1').run(nextNumber);
+      }
 
       const ticketName = `${ticketConfig.prefix}-${String(nextNumber).padStart(4, '0')} (${userRecord.game_name})`;
       const targetChannel = interaction.client.channels.cache.get(ticketConfig.targetChannelId);
@@ -3349,31 +3359,64 @@ I made this based on my own experience and what I know about the weapons. There 
       // Format it as relative time ('R' stands for Relative)
       const relativeTime = time(thread.createdAt, 'R');
 
-      const how_to_apply_embed = new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle('how to apply')
-        .setDescription(`
+
+      // 1. Wrap your plain text and pings into a basic container
+      const welcomeContainer = new ContainerBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`Hello and welcome <@${interaction.user.id}>! 👋\nPlease follow the instructions below to finish your application. Once completed, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will sort out your roles!`)
+        );
+    
+      // 1. Build the new V2 Application Container
+      const _how_to_apply_container = new ContainerBuilder()
+        .setAccentColor(0x2ecc71) // Success Green
+    
+      // 2. Main text block (Replacing Title and Description)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`
+## 📝 Instructions
 ### Answer these questions:
 1. Do you understand English?
 2. Do you agree to play **only** for Martlock?
 3. Can you join voice chat to hear calls? (no need to talk)
 ### Send 2 full size screenshots:
 1. Character stats
-2. Faction warfare stats :warning: your name should be visible :warning:
+2. Faction warfare stats ⚠️ **your name should be visible** ⚠️
+        `)
+        )
+      // 3. IMAGE 1: A full width gallery block with a sample screenshot (can be replaced with an actual example screenshot of stats)
+        .addMediaGalleryComponents(
+          new MediaGalleryBuilder().addItems({ media: { url: 'https://i.imgur.com/4w9o9c3.jpeg' } })
+        )
+    
+      // IMAGE 2: Gets a second 100% width gallery block directly underneath
+        .addMediaGalleryComponents(
+          new MediaGalleryBuilder().addItems({ media: { url: 'https://i.imgur.com/OShSTRj.jpeg' } }) 
+        )
+    
+      // 4. Visual divider to cleanly separate the main content from the "footer"
+        .addSeparatorComponents(
+          new SeparatorBuilder().setDivider(true).setSpacing(1)
+        )
+    
+      // 5. The new "Footer" 
+      // <t:UNIX:f> natively renders "Month DD, YYYY at HH:MM" (e.g., "April 4, 2026 6:00 PM") based on the user's timezone!
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`⏳ Ticket age: ${relativeTime}`)
+        );
 
-⏳ Ticket age: ${relativeTime}
-`)
-        .setImage('https://i.imgur.com/xmdGLU4.gif')
-        .setTimestamp();
+      // 2. Your Dedicated Action Container (Buttons ONLY)
+      const action_button = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`ticket_close_${interaction.user.id}`) 
+          .setLabel('Close Ticket')
+          .setEmoji('🔒')
+          .setStyle(ButtonStyle.Secondary)
+      )
         
       // Send initial thread message and ping roles
       await thread.send({ 
-        content: `
-Hello and welcome <@${interaction.user.id}>! 👋
-Please follow the "How to apply" instructions below by sending your screenshots and answers in this ticket. Once completed, a <@&${ADMIN_ROLE_ID}>/<@&${MOD_ROLE_ID}> will sort out your roles!
-        `,
-        components: [closeRow] ,
-        embeds: [how_to_apply_embed]
+        components: [welcomeContainer, _how_to_apply_container, action_button] ,
+        flags: MessageFlags.IsComponentsV2
       });
 
       // Send log
@@ -3419,8 +3462,15 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           .setStyle(ButtonStyle.Secondary)
       );
 
+      // 1. Dynamically grab the V2 containers, dropping the old button row
+      const existingLayout = interaction.message.components.slice(0, -1);
+
       try {
-        await interaction.update({ components: [confirmRow] });
+        // 2. Update to Confirm/Cancel, keeping the top layout and V2 flag
+        await interaction.update({ 
+          components: [...existingLayout, confirmRow],
+          flags: MessageFlags.IsComponentsV2
+        });
       } catch (error) {
         if (error.code === 10062 || error.message.includes('acknowledged')) return;
         console.error('Ticket close button error:', error);
@@ -3438,7 +3488,11 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           collector.stop('cancelled'); 
           
           try {
-            await i.update({ components: [closeRow] });
+            // 3. Revert back to the Close button
+            await i.update({ 
+              components: [...existingLayout, closeRow],
+              flags: MessageFlags.IsComponentsV2
+            });
           } catch (e) {
             console.error('Error reverting buttons after cancellation:', e);
           }
@@ -3450,7 +3504,11 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           collector.stop('confirmed');
           
           try {
-            await i.update({ components: [closeRow] });
+            // 4. Lock the UI state back to the Close button before archiving
+            await i.update({ 
+              components: [...existingLayout, closeRow],
+              flags: MessageFlags.IsComponentsV2
+            });
           } catch (e) {
             console.error('Error reverting buttons after confirmation:', e);
           }
@@ -3463,6 +3521,7 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           const creatorMember = await i.guild.members.fetch(creatorId).catch(() => null);
           const creatorDiscordName = creatorMember ? creatorMember.displayName : 'Unknown / Left Server';
 
+          // Standard embeds are fine here since they are separate new messages
           await thread.send({ 
             embeds: [
               new EmbedBuilder()
@@ -3498,7 +3557,11 @@ Please follow the "How to apply" instructions below by sending your screenshots 
       // ONLY revert the buttons if the reason for the collector ending was the 30s timer running out
       collector.on('end', async (collected, reason) => {
         if (reason === 'time') {
-          await message.edit({ components: [closeRow] }).catch(() => {});
+          // 5. Timeout revert: Use edit with the layout and flag
+          await message.edit({ 
+            components: [...existingLayout, closeRow],
+            flags: MessageFlags.IsComponentsV2
+          }).catch(() => {});
         }
       });
 
