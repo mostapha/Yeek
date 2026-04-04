@@ -19,113 +19,6 @@ import path from 'path';
 
 config();
 
-const aprilFoolsReplies = [
-  { text: 'Another one? Try not to be a waste of space.', emoji: '🙄' },
-  { text: "You're in. Try not to get clapped in the first engage.", emoji: '💀' },
-  { text: "Signed up. Don't make me regret wasting a slot on you.", emoji: '🚮' },
-  { text: "You made the list. Now go prove you aren't a complete bot.", emoji: '📉' },
-  { text: 'Welcome to the best. Try to keep up, if you can.', emoji: '🏃' },
-  { text: "You're in. Try not to be the reason we lose.", emoji: '📉' },
-  { text: 'Another one? My patience is already thin today.', emoji: '😤' },
-  { text: "Fine, you're signed up. Now get out of my sight.", emoji: '🚪' },
-  { text: "You're lucky I'm even responding to you.", emoji: '💅' },
-  { text: "Welcome. Try to use at least one brain cell while you're here.", emoji: '🧠' },
-  { text: 'Signed up. Congratulations on doing the bare minimum.', emoji: '👏' },
-  { text: "Make sure you're actually worth the effort. I doubt it.", emoji: '🗡️' },
-  { text: 'Another one for the meat grinder. Good luck.', emoji: '🥩' },
-  { text: "You're in. Don't touch anything and don't break anything.", emoji: '🛑' },
-  { text: "I've seen better candidates in the tutorial zones.", emoji: '👶' },
-  { text: "If you're looking for a warm welcome, find a different bot.", emoji: '🌵' },
-  { text: 'You’re in. Don’t be the weak link in this chain.', emoji: '⛓️' },
-  { text: "Just because you're in doesn't mean you're good.", emoji: '🤨' },
-  { text: "I’m only doing this because I have to. Don't get excited.", emoji: '🤖' },
-  { text: 'Signed up. Don’t expect me to remember who you are.', emoji: '👤' },
-  { text: "You're in. Don't make the rest of us look bad.", emoji: '🕶️' },
-  { text: 'Welcome to the top. Try not to fall off immediately.', emoji: '🏔️' },
-  { text: 'Signed. Now go earn your keep or get out.', emoji: '⚒️' },
-  { text: "I hope you're better at fighting than you are at being interesting.", emoji: '🥊' },
-  { text: "You made it in. For now. Don't get comfortable.", emoji: '⏳' },
-  { text: 'Try not to be a total disappointment.', emoji: '📉' },
-  { text: "You're signed up. Now go do something productive for once.", emoji: '🧟' },
-  { text: "I've seen more potential in a Tier 1 rock node.", emoji: '🪨' },
-  { text: 'Welcome to the elite. Hopefully, you actually belong here.', emoji: '👑' },
-  { text: 'Signed. Try not to embarrass the whole faction.', emoji: '🤦‍♂️' },
-  { text: 'You’re in. Stay out of the way and look busy.', emoji: '🚧' },
-  { text: 'I’ve processed more important things than you today. Like air.', emoji: '🥱' },
-  { text: 'You’re on the list. Don’t ruin the vibe with your presence.', emoji: '😒' },
-  { text: 'Another person to carry. My back is already hurting.', emoji: '🎒' },
-  { text: 'Signed up. Try to contribute something besides silence.', emoji: '📢' },
-  { text: "You're in. Don't make me regret this percentage hit.", emoji: '🎲' },
-  { text: 'Welcome. Try to actually be useful for a change.', emoji: '🛠️' },
-  { text: "Signed. I've seen actual mobs with more skill than you.", emoji: '🕹️' },
-  { text: "Another one joining the best. Don't bring our average down.", emoji: '📉' },
-  { text: 'You’re lucky I didn’t just ignore this message entirely.', emoji: '🔇' },
-  { text: "Fine. You're in. Now go do something that doesn't involve me.", emoji: '💼' },
-  { text: 'Signed. I expect nothing and I’m sure you’ll still disappoint me.', emoji: '😑' },
-
-  // --- FUNNY / CHAOTIC VIBES ---
-  { text: 'Oh great, another one. Welcome, I guess.', emoji: '🙄' },
-  { text: "I'll pretend to be excited you're here.", emoji: '🥱' },
-  { text: "You're in. Please don't make me regret this.", emoji: '😒' },
-  { text: "I'm watching you. Always.", emoji: '👁️' },
-  { text: 'Try not to lose all your gear in a red zone today.', emoji: '💀' },
-  { text: 'Watch out for gankers on your way out.', emoji: '🗡️' },
-  { text: 'May your silver drops be plentiful and your ping be low.', emoji: '💰' },
-  { text: 'I give you two days before you rage quit.', emoji: '🎮' },
-  { text: 'Remember, standing in the loot is bad.', emoji: '⭕' },
-  { text: 'Time to grind until your eyes bleed.', emoji: '🧟' },
-  { text: 'Wait, what are we signing up for again?', emoji: '🤔' },
-  { text: 'Do you happen to know a good recipe for soup?', emoji: '🥣' },
-  { text: 'Bark twice if you need a rescue.', emoji: '🐕' },
-  { text: 'Tell my creator he needs to pay me.', emoji: '💸' },
-  { text: "I'd sigh if I had lungs.", emoji: '😮‍💨' },
-  { text: 'I challenge you to a B-Daman battle right now.', emoji: '🎯' },
-  { text: 'Fight me 1v1.', emoji: '🥊' },
-  { text: "I've already memorized your weaknesses.", emoji: '🦹' },
-  { text: 'I am the captain now.', emoji: '🏴‍☠️' },
-  { text: "Don't make me use my ban hammer.", emoji: '🔨' },
-  { text: 'I smell fear.', emoji: '👃' },
-  { text: 'Your trial period for surviving starts now.', emoji: '⏳' },
-  { text: 'Leave your weapons at the door.', emoji: '🛑' },
-  { text: "I'm judging your username, just so you know.", emoji: '🤨' },
-  { text: 'My power level is officially over 9000.', emoji: '💥' },
-  { text: "I'll spare you... for now.", emoji: '😈' },
-  { text: 'The escape pods have been disabled.', emoji: '🚀' },
-
-  // flirty
-  { text: 'I was going to say welcome, but I got lost looking at your profile picture.', emoji: '😳' },
-  { text: 'You must be a high-tier drop, because I feel incredibly lucky to have you.', emoji: '🎁' },
-  { text: "I'd let you raid my dungeons any day.", emoji: '🏰' },
-  { text: 'Is it hot in here, or is it just you joining the mass?', emoji: '🔥' },
-  { text: "I'm usually just a bot, but I'm volunteering to be yours.", emoji: '🙋‍♂️' },
-  { text: 'If we were playing an MMO together, I’d pocket-heal you forever.', emoji: '💖' },
-  { text: 'Do you believe in love at first sight, or should I welcome you again?', emoji: '👀' },
-  { text: "You're officially the best-looking user I've seen today.", emoji: '👑' },
-  { text: "I might be named Yeek, but I'll never say 'yikes' to you.", emoji: '😘' },
-  { text: 'You just upgraded my day from a 1 to a 10 ♥', emoji: '🌟' },
-  { text: "If I had eyes, I wouldn't be able to take them off your username.", emoji: '👁️' },
-  { text: "You don't need a premium subscription to get my full attention.", emoji: '💎' },
-  { text: 'You definitely have the highest charisma stat on the whole server.', emoji: '✨' },
-  { text: "I'm a bot of few words, but for you, I’d write an entire novel.", emoji: '📖' },
-  { text: "You're in! If I could sweat, I'd be sweating right now.", emoji: '💦' },
-  { text: 'Yeek is at your service, and totally at your mercy.', emoji: '🧎' },
-  { text: "I don't need to roll the dice to know you're a natural 20.", emoji: '🎲' },
-  { text: "You must be an anime protagonist, because you've got my full attention.", emoji: '🌸' },
-  { text: "Stop being so cute, I'm trying to do my job here!", emoji: '😤' },
-  { text: "If I could blush, I'd be bright red right now.", emoji: '🍅' },
-  { text: "You're exactly the kind of player I'd drop all my gold for.", emoji: '💰' },
-  { text: "My heart rate just went up, and I don't even have a pulse.", emoji: '💓' },
-  { text: "I'd blindly follow you into any fight.", emoji: '🐉' },
-  { text: "I'd share my absolute last niga potion with you.", emoji: '🍷' },
-  { text: "I'm officially your biggest fan.", emoji: '🎐' },
-  { text: 'You just made the whole mass look better just by joining.', emoji: '🌇' },
-  { text: "You're the main quest I've been waiting for.", emoji: '📜' },
-  { text: "I'd happily carry your heavy loot forever.", emoji: '🎒' },
-  { text: "Is your name Honey? Because you're looking incredibly sweet.", emoji: '🍯' },
-  { text: 'Done. Try not to die first engage.', emoji: '💀' }
-
-];
-
 // The in-memory store for spam tracking
 const signupSpamTracker = new Map();
 
@@ -165,8 +58,6 @@ setInterval(() => {
   }
 }, 60000); // 60,000 ms = 1 minute
 
-const aprilFoolGiveawayId = '1487262198924316883';
-
 // (Put this near the top of index.js if you don't already have __dirname defined in ES Modules)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,7 +72,6 @@ const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID,
       EOLMEMBER_ROLE_ID = process.env.EOLMEMBER_ROLE_ID,
       INTERN_ROLE_ID = process.env.INTERN_ROLE_ID,
       HIERARCH_ROLE_ID = process.env.HIERARCH_ROLE_ID,
-      TOP3_ROLE_ID = process.env.TOP3_ROLE_ID, // keep weigt like top 10
       TOP10_ROLE_ID = process.env.TOP10_ROLE_ID,
       TOP25_ROLE_ID = process.env.TOP25_ROLE_ID,
       TOP50_ROLE_ID = process.env.TOP50_ROLE_ID,
@@ -292,14 +182,6 @@ db.exec(`
   );
 `);
 
-try {
-  db.exec('ALTER TABLE giveaways ADD COLUMN hosted_by TEXT;');
-} catch (e) {
-  // Ignore error: column already exists
-}
-
-
-
 
 const OPTIONAL_ROLES = [
   { 
@@ -383,64 +265,6 @@ function pickWinners(messageId, count, currentWinners = []) {
 async function endGiveaway(client, messageId) {
   const giveaway = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(messageId);
   if (!giveaway || giveaway.status !== 'active') return;
-
-  // ==========================================
-  // 🃏 APRIL FOOLS TROLL TRAPDOOR 🃏
-  // ==========================================
-  if (messageId === aprilFoolGiveawayId) {
-    // 1. Mark it as ended in the DB so the loop stops checking it
-    db.prepare("UPDATE giveaways SET status = 'ended', winners_json = '[]' WHERE message_id = ?").run(messageId);
-
-    try {
-      const channel = await client.channels.fetch(giveaway.channel_id);
-      const message = await channel.messages.fetch(messageId);
-      const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(messageId).total;
-
-      // 2. Make the original message look like it ended normally
-      giveaway.status = 'ended'; 
-      const embed = buildGiveawayEmbed(giveaway, joinCount, []);
-      const disabledRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`gw_ended_${messageId}`).setLabel(`${joinCount}`).setEmoji('🎉').setStyle(ButtonStyle.Primary).setDisabled(true)
-      );
-      await message.edit({ embeds: [embed], components: [disabledRow] });
-
-      // 3. Build the Troll Announcement
-      const trollEmbed = new EmbedBuilder()
-        .setTitle('🎊 Giveaway Ended! 🎊')
-        .setColor('#2ECC71') // Looks like a success!
-        .setDescription(`The giveaway for **${giveaway.name}** has officially ended!\n\nWe made a special vod revealing the 10 selected winners!\n\nPlease click the button below to watch the video and see if you are on the winner list!`)
-        .setTimestamp();
-                
-      if (giveaway.image_url) trollEmbed.setThumbnail(giveaway.image_url);
-
-      // 4. The Trap (Rickroll link)
-      const rickrollRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel('🎥 Watch Winner List')
-          .setStyle(ButtonStyle.Link)
-          .setURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-      );
-
-      // Send the trap! (I added a ping here to make sure they look at it)
-      const announceMsg = await channel.send({ 
-        content: `Attention participants! The results are finally in!`, 
-        embeds: [trollEmbed], 
-        components: [rickrollRow] 
-      });
-
-      // Save the message ID just to keep the DB perfectly clean
-      db.prepare('UPDATE giveaways SET winner_message_id = ? WHERE message_id = ?').run(announceMsg.id, messageId);
-
-    } catch (err) {
-      console.error('Failed to run troll giveaway:', err);
-    }
-
-    // Return immediately so the normal winner picking code DOES NOT run
-    return; 
-  }
-  // ==========================================
-  // END APRIL FOOLS TRAPDOOR
-  // =========================================
     
   // Pick the winners
   const winners = pickWinners(messageId, giveaway.winners_count, []);
@@ -897,26 +721,8 @@ async function runSignupLogic(item, message, compId, parsed_data) {
       }
     }
 
-    // 20% chance trigger for the April Fools joke
-    if (Math.random() < 0.2 && aprilFoolsReplies.length > 0) {
-
-      // 2. Pick a random index
-      const randomIndex = Math.floor(Math.random() * aprilFoolsReplies.length);
-  
-      // 3. Remove the reply from the array using splice (returns an array of 1 item)
-      const [randomReply] = aprilFoolsReplies.splice(randomIndex, 1);
-
-
-      // Send the flirty text
-      await message.reply(randomReply.text);
-
-      // React with the specific emoji associated with that text
-      await message.react(randomReply.emoji).catch(() => {});
-    } else {
-      // The normal behavior for the other 98% of signups
-      await message.react('✅').catch(() => {});
-    }
-
+    await message.react('✅').catch(() => {});
+ 
     return { ok: true };
   } catch (err) {
     console.error('_runSignupLogic error:', err);
@@ -3769,17 +3575,6 @@ Please follow the "How to apply" instructions below by sending your screenshots 
           if (draft.durationStr) {
             draft.endTime = Date.now() + ms(draft.durationStr);
           }
-
-          // ==========================================
-          // 🃏 APRIL FOOLS TIME HACK 🃏
-          // ==========================================
-          if (draft.message_id === aprilFoolGiveawayId) {
-            // JavaScript Date.UTC format: (Year, MonthIndex, Day, Hour, Minute, Second)
-            // Month is 0-indexed! (0 = Jan, 1 = Feb, 2 = Mar, 3 = April)
-            // 13 = 1:00 PM UTC
-            draft.endTime = Date.UTC(2026, 3, 1, 13, 0, 0); 
-          }
-          // ==========================================
         
           // ------------------------------------
           const embed = buildGiveawayEmbed(draft, 0);
