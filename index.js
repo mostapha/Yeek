@@ -4669,6 +4669,8 @@ client.on('messageCreate', async (message) => {
 
 });
 
+const pendingCompSignups = new Map();
+
 client.on('messageCreate', async (message) => {
   try {
 
@@ -4721,7 +4723,41 @@ client.on('messageCreate', async (message) => {
         content: text,
         displayName: message.member?.displayName || message.author.tag
       };
-      await runSignupLogic(item, message, compId, parsed_data);
+
+      // ==========================================
+      // THE FIX: BUFFER AND SORT BY SNOWFLAKE ID
+      // ==========================================
+    
+      // If a queue doesn't exist for this comp yet, create one and set a timer
+      if (!pendingCompSignups.has(compId)) {
+        pendingCompSignups.set(compId, []);
+      
+        // Wait 400ms to catch any simultaneous messages
+        setTimeout(() => {
+        // Grab the batch and clear the map so new messages start a new batch
+          const batch = pendingCompSignups.get(compId);
+          pendingCompSignups.delete(compId);
+        
+          // Sort the batch strictly by Discord Message ID (which dictates UI order)
+          // We MUST use BigInt because Discord Snowflakes exceed standard JS integer precision
+          batch.sort((a, b) => {
+            const idA = BigInt(a.message.id);
+            const idB = BigInt(b.message.id);
+            return idA < idB ? -1 : (idA > idB ? 1 : 0);
+          });
+
+          // Now feed them sequentially into your existing lock system!
+          for (const data of batch) {
+            runWithCompLock(compId, async () => {
+              await runSignupLogic(data.item, data.message, compId, data.parsed_data);
+            });
+          }
+        }, 400); // 400 milliseconds is fast enough not to be noticed, but slow enough to catch latency
+      }
+
+      // Push the current message into the buffer queue
+      pendingCompSignups.get(compId).push({ item, message, parsed_data });
+
     });
 
 
