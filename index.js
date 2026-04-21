@@ -266,8 +266,22 @@ function pickWinners(messageId, count, currentWinners = []) {
 async function endGiveaway(client, messageId) {
   const giveaway = db.prepare('SELECT * FROM giveaways WHERE message_id = ?').get(messageId);
   if (!giveaway || giveaway.status !== 'active') return;
+
+  // =====================================================================
+  // --- NEW: Fetch channel and message FIRST to verify they exist! ---
+  let channel, message;
+  try {
+    channel = await client.channels.fetch(giveaway.channel_id);
+    message = await channel.messages.fetch(messageId);
+  } catch (err) {
+    // If we can't fetch them (deleted channel, deleted message, or bot kicked), CANCEL IT!
+    db.prepare("UPDATE giveaways SET status = 'cancelled' WHERE message_id = ?").run(messageId);
+    console.log(`[Giveaway] Cancelled ${messageId} because the message or channel was deleted.`);
+    return; // Stop the function completely
+  }
+  // =====================================================================
     
-  // Pick the winners
+  // Now it is 100% safe to pick the winners
   const winners = pickWinners(messageId, giveaway.winners_count, []);
     
   // Update the database to mark it as ended
@@ -276,9 +290,6 @@ async function endGiveaway(client, messageId) {
     .run(JSON.stringify(winners), rightNow, messageId);
       
   try {
-    const channel = await client.channels.fetch(giveaway.channel_id);
-    const message = await channel.messages.fetch(messageId);
-        
     // 1. Fetch the exact joinCount right here!
     const joinCount = db.prepare('SELECT COUNT(*) as total FROM giveaway_joins WHERE message_id = ?').get(messageId).total;
         
@@ -289,7 +300,7 @@ async function endGiveaway(client, messageId) {
     // 3. Use our new helper function!
     const embed = buildGiveawayEmbed(giveaway, joinCount, winners);
 
-    // --- NEW: Create the disabled button ---
+    // --- Create the disabled button ---
     const disabledRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`gw_ended_${messageId}`) // Safe ID
@@ -319,7 +330,7 @@ async function endGiveaway(client, messageId) {
       announceEmbed.setThumbnail(giveaway.image_url);
     }
 
-    let announceMsg; //
+    let announceMsg; 
     if (winners.length > 0) {
       const winText = winners.map(w => `<@${w}>`).join(', ');
 
@@ -362,7 +373,7 @@ async function endGiveaway(client, messageId) {
       .run(announceMsg.id, messageId);
           
   } catch (err) {
-    console.error('Failed to end giveaway:', err);
+    console.error('Failed to end giveaway formatting:', err);
   }
 }
 
