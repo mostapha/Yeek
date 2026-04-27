@@ -4812,15 +4812,17 @@ client.on('guildMemberRemove', async (member) => {
   }
 });
 
-// Replace with the actual ID of the user you want to auto-kick
-const BLACKLISTED_USER_ID = '263336931436396554'; 
+// Add as many IDs as you need inside the array, separated by commas.
+// Keep them inside quotes (as strings).
+const BLACKLISTED_USER_IDS = [
+  '1042193134068711435' // stache
+];
+
 client.on('guildMemberAdd', async (member) => {
-  // Check if the joining member's ID matches the blacklist
-  if (member.id === BLACKLISTED_USER_ID) {
+  // Check if the array contains the joining member's ID
+  if (BLACKLISTED_USER_IDS.includes(member.id)) {
     try {
-      // Kick the member with a reason for the audit log
-      await member.kick('Auto-kick');
-      console.log(`Successfully auto-kicked blacklisted user: ${member.user.tag}`);
+      await member.kick('Auto-kicked');
     } catch (error) {
       console.error('Yeek failed to kick the user. Check permissions.', error);
     }
