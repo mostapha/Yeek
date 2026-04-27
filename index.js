@@ -4816,7 +4816,7 @@ client.on('guildMemberRemove', async (member) => {
 // Keep them inside quotes (as strings).
 const BLACKLISTED_USER_IDS = [
   '1042193134068711435', // stache
-  '1268615680496898103', // 2nd account of stache
+  '1268615680496898103' // 2nd account of stache
 ];
 
 client.on('guildMemberAdd', async (member) => {
