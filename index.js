@@ -4990,4 +4990,47 @@ client.on('interactionCreate', async (interaction) => {
 
 
 
+// Replace with your actual Discord User ID
+const YOUR_ADMIN_ID = '760271416544722944'; // yix id 
+// 30 days converted into milliseconds
+const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000; 
+
+client.on('guildMemberAdd', async (member) => {
+  const now = Date.now();
+  const accountAge = now - member.user.createdAt.getTime();
+
+  // Check if the account is less than 30 days old
+  if (accountAge < ONE_MONTH_MS) {
+    try {
+      // Fetch your Discord account so the bot can DM you
+      const adminUser = await client.users.fetch(YOUR_ADMIN_ID);
+
+      // Build a clean embed with all the useful info
+      const alertEmbed = new EmbedBuilder()
+        .setColor('#FF9900') // Orange warning color
+        .setTitle('⚠️ New Account Alert')
+        .setDescription(`A newly created Discord account just joined **${member.guild.name}**.`)
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+        .addFields(
+          { name: '👤 Username', value: member.user.tag, inline: true },
+          { name: '🆔 User ID', value: member.id, inline: true },
+          { name: '🤖 Is Bot?', value: member.user.bot ? 'Yes' : 'No', inline: true },
+          // Using Discord's <t:TIMESTAMP:R> creates a dynamic "X days ago" display
+          { name: '📅 Account Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: false },
+          { name: '📥 Joined Server', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: false }
+        )
+        .setFooter({ text: 'Yeek Security System' })
+        .setTimestamp();
+
+      // Send the DM to you
+      await adminUser.send({ embeds: [alertEmbed] });
+            
+    } catch (error) {
+      console.error('Yeek failed to send DM. Make sure your DMs are open to bots!', error);
+    }
+  } else {
+    console.log("it's ok user");
+  }
+});
+
 client.login(process.env.BOT_TOKEN);
