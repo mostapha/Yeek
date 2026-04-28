@@ -5028,8 +5028,6 @@ client.on('guildMemberAdd', async (member) => {
     } catch (error) {
       console.error('Yeek failed to send DM. Make sure your DMs are open to bots!', error);
     }
-  } else {
-    console.log("it's ok user");
   }
 });
 
